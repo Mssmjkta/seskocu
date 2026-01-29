@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vocal Coach (Pro Audio)</title>
+    <title>Vocal Coach (Studio Settings)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         /* --- 1. LOGICAL COLOR SYSTEM (HSL) --- */
@@ -11,9 +11,7 @@
             --hue-brand: 273;
             --hue-neutral: 240; 
             
-            /* Exact Match: Cyan */
             --c-exact-hex: #4bc5da;
-            /* Octave Match: Orange */
             --c-octave-hex: #e79e51;
 
             /* Light Mode Levels */
@@ -26,7 +24,6 @@
 
         [data-theme="dark"] {
             --l-bg: 5%; --l-surface: 8%; --l-input: 4%;
-            
             --piano-white-bg: hsl(var(--hue-neutral), 10%, 14%);
             --piano-black-bg: hsl(var(--hue-neutral), 10%, 85%);
             --piano-border: 1px solid hsla(0,0%,0%,0.5);
@@ -113,6 +110,18 @@
         }
         select:focus, input:focus { box-shadow: inset 0 2px 4px hsla(0,0%,0%,0.3), 0 0 0 2px var(--brand-vivid); }
 
+        /* Range Slider for Gain */
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; background: transparent; height: 30px; cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%; height: 6px; background: var(--c-input); border-radius: 3px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: var(--brand-vivid); margin-top: -6px; box-shadow: 0 0 10px var(--brand-vivid);
+        }
+
         /* --- BUTTONS --- */
         .action-btn {
             width: 100%; padding: 18px; border: none; border-radius: 16px;
@@ -193,19 +202,8 @@
         }
         
         .tuner-display.listening { color: var(--c-text-main); border-color: rgba(255,255,255,0.2); }
-        
-        .tuner-display.match-exact { 
-            background: var(--c-exact-hex); color: #000; 
-            box-shadow: 0 0 20px rgba(75, 197, 218, 0.4);
-            transform: scale(1.05);
-        }
-
-        .tuner-display.match-octave { 
-            background: var(--c-octave-hex); color: #000; 
-            box-shadow: 0 0 20px rgba(231, 158, 81, 0.4);
-            transform: scale(1.05);
-        }
-        
+        .tuner-display.match-exact { background: var(--c-exact-hex); color: #000; box-shadow: 0 0 20px rgba(75, 197, 218, 0.4); transform: scale(1.05); }
+        .tuner-display.match-octave { background: var(--c-octave-hex); color: #000; box-shadow: 0 0 20px rgba(231, 158, 81, 0.4); transform: scale(1.05); }
         .tuner-display.blocked { opacity: 0.5; font-size: 0.8rem; }
 
         .mic-icon-svg { width: 16px; height: 16px; fill: currentColor; }
@@ -260,9 +258,13 @@
     </div>
 
     <div class="grid-row">
-        <div class="input-group" style="grid-column: 1 / -1;">
+        <div class="input-group">
             <label id="lbl_interval">Interval Speed (Sec)</label>
             <input type="number" id="interval" value="3.5" min="2.0" step="0.5">
+        </div>
+        <div class="input-group">
+            <label id="lbl_gain">Mic Sensitivity</label>
+            <input type="range" id="micGainSlider" min="1" max="10" step="0.5" value="5" oninput="updateMicGain(this.value)">
         </div>
     </div>
 
@@ -285,8 +287,8 @@
 
 <script>
     const TRANSLATIONS = {
-        en: { title: "Vocal Coach", key: "Key Center", scale: "Scale Mode", start: "Range Start", end: "Range End", interval: "Interval (Sec)", btnStart: "Start Coaching", btnStop: "Stop", target: "Sing This: ", ready: "System Ready", mic: "Sing Now" },
-        tr: { title: "Ses Koçu", key: "Kök Ses", scale: "Gam Modu", start: "Başlangıç", end: "Bitiş", interval: "Aralık (sn)", btnStart: "Başlat", btnStop: "Durdur", target: "Bunu Söyle: ", ready: "Sistem Hazır", mic: "Söyle" }
+        en: { title: "Vocal Coach 2", key: "Key Center", scale: "Scale Mode", start: "Range Start", end: "Range End", interval: "Interval (Sec)", gain: "Mic Sensitivity", btnStart: "Start Coaching", btnStop: "Stop", target: "Sing This: ", ready: "System Ready", mic: "Sing Now" },
+        tr: { title: "Ses Koçu 2", key: "Kök Ses", scale: "Gam Modu", start: "Başlangıç", end: "Bitiş", interval: "Aralık (sn)", gain: "Mikrofon Hassasiyeti", btnStart: "Başlat", btnStop: "Durdur", target: "Bunu Söyle: ", ready: "Sistem Hazır", mic: "Söyle" }
     };
 
     const NOTE_NAMES_EN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -297,8 +299,9 @@
     let currentTargetNote = null;
     let isMicActive = false;
     let detectionId = null;
-    let ignoreMicInput = false; // Flag to stop self-detection
+    let ignoreMicInput = false;
 
+    // --- PITCH DETECTION ---
     function autoCorrelate(buf, sampleRate) {
         let SIZE = buf.length;
         let rms = 0;
@@ -338,7 +341,6 @@
     function updatePitch() {
         if (!isMicActive || !analyser) return;
 
-        // BLIND SPOT LOGIC: If computer is playing loud, pause detection
         if(ignoreMicInput) {
             const tunerEl = document.getElementById('tunerDisplay');
             tunerEl.innerText = "(Playing...)";
@@ -385,6 +387,7 @@
         detectionId = requestAnimationFrame(updatePitch);
     }
 
+    // --- MIC HANDLING ---
     async function toggleMic() {
         if(isMicActive) {
             if(mic) mic.close();
@@ -397,16 +400,17 @@
             if (Tone.context.state !== 'running') await Tone.start();
             mic = new Tone.UserMedia();
             try {
-                // Constraints for feedback reduction
+                // Constraints optimization
                 await mic.open({
-                    echoCancellation: true,
-                    noiseSuppression: true,
+                    echoCancellation: true, // Crucial for Android
+                    noiseSuppression: false, // OFF helps iOS distance
                     autoGainControl: true
                 });
                 
-                // Gain Booster for iOS sensitivity
+                // Manual Gain Stage
                 micGain = Tone.context.createGain();
-                micGain.gain.value = 5.0; // 500% Volume Boost
+                const sliderVal = document.getElementById('micGainSlider').value;
+                micGain.gain.value = parseFloat(sliderVal);
                 
                 analyser = Tone.context.createAnalyser();
                 analyser.fftSize = 2048;
@@ -420,11 +424,16 @@
                 updatePitch();
             } catch(e) {
                 console.error("Mic Error", e);
-                alert("Microphone access denied.");
+                alert("Microphone access denied. Check permission settings.");
             }
         }
     }
 
+    function updateMicGain(val) {
+        if(micGain) micGain.gain.value = parseFloat(val);
+    }
+
+    // --- SETUP & UTILS ---
     function toggleTheme() {
         const html = document.documentElement;
         const icon = document.getElementById('themeIcon');
@@ -485,6 +494,7 @@
         document.getElementById('lbl_start').innerText = t.start;
         document.getElementById('lbl_end').innerText = t.end;
         document.getElementById('lbl_interval').innerText = t.interval;
+        document.getElementById('lbl_gain').innerText = t.gain;
         const btnStart = document.getElementById('startBtn');
         if(!btnStart.disabled) btnStart.innerText = t.btnStart;
         document.getElementById('stopBtn').innerText = t.btnStop;
@@ -540,7 +550,7 @@
         
         currentTargetNote = noteName; 
         
-        // BLIND SPOT LOGIC: Ignore Mic for 0.8s while piano plays
+        // BLIND SPOT
         ignoreMicInput = true;
         
         sampler.triggerAttackRelease(noteName, duration);
@@ -550,7 +560,7 @@
             setTimeout(() => keyEl.classList.remove('active'), 400);
         }
         
-        // Re-enable Mic listening after attack phase
+        // Restore Listening
         setTimeout(() => { ignoreMicInput = false; }, 800);
     }
 
@@ -571,11 +581,8 @@
             pent_major: [0,2,4,7,9]
         };
         const currentScaleIntervals = SCALES[scaleType];
-        
-        // Dynamic Keyboard Mapping Calculation
         const startNoteObj = allNotes.find(n => n.val === min);
         const startVal = startNoteObj ? startNoteObj.val : 0;
-
         const rangeNotes = allNotes.filter(n => n.val >= min && n.val <= max);
         const WHITE_W = 42; const BLACK_W = 28;
         let whiteCount = 0; let whiteNotes = []; let blackNotes = [];
@@ -604,7 +611,6 @@
                 if(e.type === 'touchstart') e.stopPropagation(); 
                 if(Tone.context.state !== 'running') await Tone.start();
                 if(sampler && isAudioReady) {
-                    // Play immediately without blind spot for manual clicks
                     sampler.triggerAttackRelease(note.name, 2.0);
                     currentTargetNote = note.name;
                     div.classList.add('active');
@@ -617,7 +623,6 @@
             div.addEventListener('mousedown', trigger);
             div.addEventListener('touchstart', trigger, {passive: false});
             
-            // DYNAMIC KEYBOARD LABEL
             const dist = note.val - startVal;
             if(dist >= 0 && dist < KEY_SEQUENCE.length && window.innerWidth > 600) {
                  const span = document.createElement('span');
@@ -625,7 +630,6 @@
                  span.innerText = KEY_SEQUENCE[dist].toUpperCase();
                  div.appendChild(span);
             }
-
             return div;
         };
 
@@ -705,24 +709,19 @@
         document.getElementById('stopBtn').style.display = 'none';
         document.getElementById('targetDisplay').innerText = TRANSLATIONS[currentLang].ready;
         document.getElementById('controlDeck').className = "controls-container";
-        // Reset flags
         ignoreMicInput = false;
     }
     
-    // --- KEYBOARD LISTENER LOGIC (DYNAMIC) ---
+    // --- KEYBOARD LISTENER ---
     window.addEventListener('keydown', async (e) => {
         if(e.repeat) return;
         const key = e.key.toLowerCase();
-        
-        // Find index of key in our chromatic map
         const keyIndex = KEY_SEQUENCE.indexOf(key);
         if(keyIndex === -1) return;
 
-        // Calculate dynamic note based on minNote
         const minVal = parseInt(document.getElementById('minNote').value);
         const targetVal = minVal + keyIndex;
         
-        // Find note object
         const noteObj = allNotes.find(n => n.val === targetVal);
         if(noteObj) {
             if(Tone.context.state !== 'running') await Tone.start();
@@ -731,7 +730,6 @@
             if(el) el.classList.add('active');
             
             if(sampler && isAudioReady) {
-                // Manual play - no blind spot needed
                 sampler.triggerAttack(noteObj.name);
                 currentTargetNote = noteObj.name;
                 document.getElementById('targetDisplay').innerText = TRANSLATIONS[currentLang].target + getDisplayNote(noteObj.name);
@@ -743,7 +741,6 @@
         const key = e.key.toLowerCase();
         const keyIndex = KEY_SEQUENCE.indexOf(key);
         if(keyIndex === -1) return;
-
         const minVal = parseInt(document.getElementById('minNote').value);
         const targetVal = minVal + keyIndex;
         const noteObj = allNotes.find(n => n.val === targetVal);
