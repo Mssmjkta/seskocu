@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vocal Coach (Studio Settings)</title>
+    <title>Vocal Coach (Android Pro)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         /* --- 1. LOGICAL COLOR SYSTEM (HSL) --- */
@@ -269,10 +269,6 @@
             <label id="lbl_gain">Mic Volume (iPhone Boost)</label>
             <input type="range" id="micGainSlider" min="1" max="10" step="0.5" value="3" oninput="updateMicGain(this.value)">
         </div>
-        <div class="input-group">
-            <label id="lbl_gate">Noise Gate (Android Fix)</label>
-            <input type="range" id="gateSlider" min="1" max="20" step="1" value="3" oninput="updateGate(this.value)">
-        </div>
     </div>
 
     <div style="margin-top: 10px;">
@@ -296,12 +292,12 @@
     const TRANSLATIONS = {
         en: { 
             title: "Vocal Coach", key: "Key Center", scale: "Scale Mode", start: "Range Start", end: "Range End", 
-            interval: "Interval (Sec)", gain: "Mic Volume (Boost)", gate: "Noise Gate (Filter)",
+            interval: "Interval (Sec)", gain: "Mic Volume (Boost)",
             btnStart: "Start Coaching", btnStop: "Stop", target: "Sing This: ", ready: "System Ready", mic: "Sing Now" 
         },
         tr: { 
             title: "Ses Koçu", key: "Kök Ses", scale: "Gam Modu", start: "Başlangıç", end: "Bitiş", 
-            interval: "Aralık (sn)", gain: "Mikrofon Sesi (Boost)", gate: "Gürültü Eşiği (Filtre)",
+            interval: "Aralık (sn)", gain: "Mikrofon Sesi (Boost)",
             btnStart: "Başlat", btnStop: "Durdur", target: "Bunu Söyle: ", ready: "Sistem Hazır", mic: "Söyle" 
         }
     };
@@ -310,12 +306,14 @@
     const NOTE_NAMES_TR = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
     const KEY_SEQUENCE = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';'];
 
-    let currentLang = 'en', sampler, reverb, mic, micGain, analyser, isPlaying = false, timerId = null, allNotes = [], isAudioReady = false;
+    let currentLang = 'en', sampler, reverb, mic, micGain, filterHighPass, analyser, isPlaying = false, timerId = null, allNotes = [], isAudioReady = false;
     let currentTargetNote = null;
     let isMicActive = false;
     let detectionId = null;
     let ignoreMicInput = false;
-    let noiseGateThreshold = 0.03; // Default gate
+    
+    // Constant Gate for Android (Hidden from UI but active)
+    const NOISE_GATE_THRESHOLD = 0.02; 
 
     function autoCorrelate(buf, sampleRate) {
         let SIZE = buf.length;
@@ -323,8 +321,8 @@
         for (let i = 0; i < SIZE; i++) { let val = buf[i]; rms += val * val; }
         rms = Math.sqrt(rms / SIZE);
         
-        // NOISE GATE LOGIC (Hardware agnostic)
-        if (rms < noiseGateThreshold) return -1; 
+        // Android Fix: Ignore low volume rumble/echo
+        if (rms < NOISE_GATE_THRESHOLD) return -1; 
 
         let r1 = 0, r2 = SIZE - 1, thres = 0.2;
         for (let i = 0; i < SIZE / 2; i++) if (Math.abs(buf[i]) < thres) { r1 = i; break; }
@@ -376,7 +374,6 @@
         const deck = document.getElementById('controlDeck');
 
         if (freq === -1) {
-            // Signal below Noise Gate
             tunerEl.innerText = isMicActive ? "..." : "--";
             tunerEl.className = "tuner-display listening";
             deck.className = "controls-container";
@@ -418,30 +415,35 @@
             if (Tone.context.state !== 'running') await Tone.start();
             mic = new Tone.UserMedia();
             try {
-                // Settings optimized for Singing
+                // ANDROID SPECIFIC: GOOG CONSTRAINTS
                 await mic.open({
-                    echoCancellation: true, // Keep True for Android
-                    noiseSuppression: false, // False for iPhone distance
-                    autoGainControl: true
+                    echoCancellation: true,
+                    noiseSuppression: false, 
+                    autoGainControl: true,
+                    googEchoCancellation: true,
+                    googAutoGainControl: true,
+                    googNoiseSuppression: true,
+                    googHighpassFilter: true
                 });
                 
                 micGain = Tone.context.createGain();
-                // Set initial gain from slider
                 const sliderVal = document.getElementById('micGainSlider').value;
                 micGain.gain.value = parseFloat(sliderVal);
                 
+                // FILTER: HighPass at 100Hz to kill mud/feedback
+                filterHighPass = new Tone.Filter(100, "highpass");
+
                 analyser = Tone.context.createAnalyser();
                 analyser.fftSize = 2048;
                 
-                mic.connect(micGain);
+                // Chain: Mic -> HighPass -> Gain -> Analyser
+                mic.connect(filterHighPass);
+                filterHighPass.connect(micGain);
                 micGain.connect(analyser);
                 
                 isMicActive = true;
                 document.getElementById('micBtn').classList.add('active');
                 document.getElementById('tunerDisplay').classList.add('listening');
-                
-                // Init gate value
-                updateGate(document.getElementById('gateSlider').value);
                 
                 updatePitch();
             } catch(e) {
@@ -453,11 +455,6 @@
 
     function updateMicGain(val) {
         if(micGain) micGain.gain.value = parseFloat(val);
-    }
-
-    function updateGate(val) {
-        // Map 1-20 slider to 0.01 - 0.20 RMS
-        noiseGateThreshold = parseFloat(val) / 100;
     }
 
     // --- SETUP & UTILS ---
@@ -522,8 +519,6 @@
         document.getElementById('lbl_end').innerText = t.end;
         document.getElementById('lbl_interval').innerText = t.interval;
         document.getElementById('lbl_gain').innerText = t.gain;
-        document.getElementById('lbl_gate').innerText = t.gate;
-        
         const btnStart = document.getElementById('startBtn');
         if(!btnStart.disabled) btnStart.innerText = t.btnStart;
         document.getElementById('stopBtn').innerText = t.btnStop;
@@ -579,7 +574,7 @@
         
         currentTargetNote = noteName; 
         
-        // BLIND SPOT INCREASED TO 1.2s for Echo
+        // BLIND SPOT INCREASED TO 1.2s for REVERB TAIL
         ignoreMicInput = true;
         
         sampler.triggerAttackRelease(noteName, duration);
@@ -589,7 +584,7 @@
             setTimeout(() => keyEl.classList.remove('active'), 400);
         }
         
-        // Extended Blind Spot for Android Reverberation
+        // Extended Wait
         setTimeout(() => { ignoreMicInput = false; }, 1200);
     }
 
