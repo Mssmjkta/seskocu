@@ -3,15 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vocal Coach (Signature Edition)</title>
+    <title>Vocal Coach (Pro Audio)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         /* --- 1. LOGICAL COLOR SYSTEM (HSL) --- */
         :root {
             --hue-brand: 273;
             --hue-neutral: 240; 
-            --hue-success: 150; /* Green for matching pitch */
-            --hue-warn: 35;     /* Yellow/Orange for close */
+            
+            /* Exact Match: Cyan */
+            --c-exact-hex: #4bc5da;
+            /* Octave Match: Orange */
+            --c-octave-hex: #e79e51;
 
             /* Light Mode Levels */
             --l-bg: 96%; --l-surface: 100%; --l-input: 94%;
@@ -19,8 +22,6 @@
             --brand-core: hsl(var(--hue-brand), 80%, 20%);
             --brand-vivid: hsl(var(--hue-brand), 90%, 55%);
             --brand-dim:   hsl(var(--hue-brand), 60%, 10%);
-
-            --c-success: hsl(var(--hue-success), 80%, 45%);
         }
 
         [data-theme="dark"] {
@@ -88,10 +89,14 @@
             transition: border-color 0.2s;
         }
         
-        /* MATCH ANIMATION STATE */
-        .controls-container.match-success {
-            border-top-color: var(--c-success);
-            box-shadow: 0 0 30px hsla(var(--hue-success), 80%, 45%, 0.3);
+        .controls-container.match-exact {
+            border-top-color: var(--c-exact-hex);
+            box-shadow: 0 0 30px rgba(75, 197, 218, 0.3);
+        }
+
+        .controls-container.match-octave {
+            border-top-color: var(--c-octave-hex);
+            box-shadow: 0 0 30px rgba(231, 158, 81, 0.3);
         }
 
         /* --- INPUTS --- */
@@ -187,16 +192,23 @@
             min-width: 100px; transition: all 0.2s;
         }
         
-        /* Tuner States */
         .tuner-display.listening { color: var(--c-text-main); border-color: rgba(255,255,255,0.2); }
-        .tuner-display.match { 
-            background: var(--c-success); color: #000; 
-            box-shadow: 0 0 20px hsla(var(--hue-success), 80%, 45%, 0.4);
+        
+        .tuner-display.match-exact { 
+            background: var(--c-exact-hex); color: #000; 
+            box-shadow: 0 0 20px rgba(75, 197, 218, 0.4);
             transform: scale(1.05);
         }
 
-        .mic-icon-svg { width: 16px; height: 16px; fill: currentColor; }
+        .tuner-display.match-octave { 
+            background: var(--c-octave-hex); color: #000; 
+            box-shadow: 0 0 20px rgba(231, 158, 81, 0.4);
+            transform: scale(1.05);
+        }
+        
+        .tuner-display.blocked { opacity: 0.5; font-size: 0.8rem; }
 
+        .mic-icon-svg { width: 16px; height: 16px; fill: currentColor; }
         .loading-overlay { position: fixed; inset: 0; background: var(--c-bg); display: flex; justify-content: center; align-items: center; z-index: 999; flex-direction: column; gap: 15px; color: var(--brand-vivid);}
         .spinner { width: 30px; height: 30px; border: 3px solid hsla(var(--hue-brand), 100%, 20%, 0.3); border-top: 3px solid var(--brand-vivid); border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -279,69 +291,63 @@
 
     const NOTE_NAMES_EN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
     const NOTE_NAMES_TR = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
+    const KEY_SEQUENCE = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';'];
 
-    let currentLang = 'en', sampler, reverb, mic, meter, analyser, isPlaying = false, timerId = null, allNotes = [], isAudioReady = false;
+    let currentLang = 'en', sampler, reverb, mic, micGain, analyser, isPlaying = false, timerId = null, allNotes = [], isAudioReady = false;
     let currentTargetNote = null;
     let isMicActive = false;
     let detectionId = null;
+    let ignoreMicInput = false; // Flag to stop self-detection
 
-    // --- PITCH DETECTION LOGIC (Autocorrelation) ---
     function autoCorrelate(buf, sampleRate) {
         let SIZE = buf.length;
         let rms = 0;
-        for (let i = 0; i < SIZE; i++) {
-            let val = buf[i];
-            rms += val * val;
-        }
+        for (let i = 0; i < SIZE; i++) { let val = buf[i]; rms += val * val; }
         rms = Math.sqrt(rms / SIZE);
-        if (rms < 0.01) return -1; // Not enough signal
-
+        if (rms < 0.01) return -1; 
         let r1 = 0, r2 = SIZE - 1, thres = 0.2;
-        for (let i = 0; i < SIZE / 2; i++)
-            if (Math.abs(buf[i]) < thres) { r1 = i; break; }
-        for (let i = 1; i < SIZE / 2; i++)
-            if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
-
-        buf = buf.slice(r1, r2);
-        SIZE = buf.length;
-
+        for (let i = 0; i < SIZE / 2; i++) if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+        for (let i = 1; i < SIZE / 2; i++) if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
+        buf = buf.slice(r1, r2); SIZE = buf.length;
         let c = new Array(SIZE).fill(0);
-        for (let i = 0; i < SIZE; i++)
-            for (let j = 0; j < SIZE - i; j++)
-                c[i] = c[i] + buf[j] * buf[j + i];
-
+        for (let i = 0; i < SIZE; i++) for (let j = 0; j < SIZE - i; j++) c[i] = c[i] + buf[j] * buf[j + i];
         let d = 0; while (c[d] > c[d + 1]) d++;
         let maxval = -1, maxpos = -1;
-        for (let i = d; i < SIZE; i++) {
-            if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
-        }
+        for (let i = d; i < SIZE; i++) { if (c[i] > maxval) { maxval = c[i]; maxpos = i; } }
         let T0 = maxpos;
-
         let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
         let a = (x1 + x3 - 2 * x2) / 2;
         let b = (x3 - x1) / 2;
         if (a) T0 = T0 - b / (2 * a);
-
         return sampleRate / T0;
     }
 
     function frequencyToNote(freq) {
         const noteNum = 12 * (Math.log(freq / 440) / Math.log(2)) + 69;
-        const midi = Math.round(noteNum);
-        return midi;
+        return Math.round(noteNum);
     }
 
     function getNoteNameFromMidi(midi) {
         const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
         const octave = Math.floor(midi / 12) - 1;
-        const noteName = notes[midi % 12];
-        return noteName + octave;
+        return notes[midi % 12] + octave;
     }
+
+    function getNoteChroma(noteName) { return noteName.replace(/[0-9-]/g, ''); }
 
     function updatePitch() {
         if (!isMicActive || !analyser) return;
 
-        const bufferLength = analyser.frequencyBinCount; // 2048 typically
+        // BLIND SPOT LOGIC: If computer is playing loud, pause detection
+        if(ignoreMicInput) {
+            const tunerEl = document.getElementById('tunerDisplay');
+            tunerEl.innerText = "(Playing...)";
+            tunerEl.className = "tuner-display blocked";
+            detectionId = requestAnimationFrame(updatePitch);
+            return;
+        }
+
+        const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Float32Array(bufferLength);
         analyser.getFloatTimeDomainData(dataArray);
 
@@ -351,21 +357,29 @@
 
         if (freq === -1) {
             tunerEl.innerText = isMicActive ? "..." : "--";
-            tunerEl.classList.remove('match');
-            deck.classList.remove('match-success');
+            tunerEl.className = "tuner-display listening";
+            deck.className = "controls-container";
         } else {
             const midi = frequencyToNote(freq);
             const sungNote = getNoteNameFromMidi(midi);
             tunerEl.innerText = getDisplayNote(sungNote);
 
-            // Check Match
-            if(currentTargetNote && sungNote === currentTargetNote) {
-                tunerEl.classList.add('match');
-                deck.classList.add('match-success');
-                tunerEl.innerText = "MATCH! " + getDisplayNote(sungNote);
-            } else {
-                tunerEl.classList.remove('match');
-                deck.classList.remove('match-success');
+            if(currentTargetNote) {
+                const sungChroma = getNoteChroma(sungNote);
+                const targetChroma = getNoteChroma(currentTargetNote);
+
+                if (sungNote === currentTargetNote) {
+                    tunerEl.className = "tuner-display match-exact";
+                    deck.className = "controls-container match-exact";
+                    tunerEl.innerText = "EXACT: " + getDisplayNote(sungNote);
+                } else if (sungChroma === targetChroma) {
+                    tunerEl.className = "tuner-display match-octave";
+                    deck.className = "controls-container match-octave";
+                    tunerEl.innerText = "OCTAVE: " + getDisplayNote(sungNote);
+                } else {
+                    tunerEl.className = "tuner-display listening";
+                    deck.className = "controls-container";
+                }
             }
         }
         detectionId = requestAnimationFrame(updatePitch);
@@ -373,37 +387,44 @@
 
     async function toggleMic() {
         if(isMicActive) {
-            // Stop Mic
             if(mic) mic.close();
             isMicActive = false;
             document.getElementById('micBtn').classList.remove('active');
             cancelAnimationFrame(detectionId);
             document.getElementById('tunerDisplay').innerText = "--";
-            document.getElementById('tunerDisplay').classList.remove('listening');
+            document.getElementById('tunerDisplay').className = "tuner-display";
         } else {
-            // Start Mic
             if (Tone.context.state !== 'running') await Tone.start();
             mic = new Tone.UserMedia();
-            
             try {
-                await mic.open();
-                // Create analyser node attached to mic
+                // Constraints for feedback reduction
+                await mic.open({
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                });
+                
+                // Gain Booster for iOS sensitivity
+                micGain = Tone.context.createGain();
+                micGain.gain.value = 5.0; // 500% Volume Boost
+                
                 analyser = Tone.context.createAnalyser();
                 analyser.fftSize = 2048;
-                mic.connect(analyser); // Connect mic directly to analyser
-
+                
+                mic.connect(micGain);
+                micGain.connect(analyser);
+                
                 isMicActive = true;
                 document.getElementById('micBtn').classList.add('active');
                 document.getElementById('tunerDisplay').classList.add('listening');
                 updatePitch();
             } catch(e) {
                 console.error("Mic Error", e);
-                alert("Microphone access denied or not supported.");
+                alert("Microphone access denied.");
             }
         }
     }
 
-    // --- THEME & SETUP ---
     function toggleTheme() {
         const html = document.documentElement;
         const icon = document.getElementById('themeIcon');
@@ -458,19 +479,16 @@
         const t = TRANSLATIONS[lang];
         document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
         document.querySelector(`button[onclick="setLang('${lang}')"]`).classList.add('active');
-
         document.querySelector('h1').innerText = t.title;
         document.getElementById('lbl_key').innerText = t.key;
         document.getElementById('lbl_scale').innerText = t.scale;
         document.getElementById('lbl_start').innerText = t.start;
         document.getElementById('lbl_end').innerText = t.end;
         document.getElementById('lbl_interval').innerText = t.interval;
-        
         const btnStart = document.getElementById('startBtn');
         if(!btnStart.disabled) btnStart.innerText = t.btnStart;
         document.getElementById('stopBtn').innerText = t.btnStop;
         if(!isPlaying) document.getElementById('targetDisplay').innerText = t.ready;
-
         const opts = document.getElementById('scaleType').options;
         for(let opt of opts) {
             if(!opt.dataset.en) opt.dataset.en = opt.innerText;
@@ -485,20 +503,16 @@
         const minSel = document.getElementById('minNote');
         const maxSel = document.getElementById('maxNote');
         const oldRoot = rootSel.value, oldMin = minSel.value, oldMax = maxSel.value;
-
         rootSel.innerHTML = ""; minSel.innerHTML = ""; maxSel.innerHTML = "";
-
         NOTE_NAMES_EN.forEach((n, i) => {
             const displayName = (currentLang === 'tr') ? NOTE_NAMES_TR[i] : n;
             rootSel.add(new Option(displayName, i));
         });
-
         allNotes.forEach(n => {
             const displayName = getDisplayNote(n.name);
             minSel.add(new Option(displayName, n.val));
             maxSel.add(new Option(displayName, n.val));
         });
-
         if(preserveSelection) {
             rootSel.value = oldRoot; minSel.value = oldMin; maxSel.value = oldMax;
         } else {
@@ -524,14 +538,20 @@
         if (Tone.context.state !== 'running') await Tone.start();
         if(!sampler || !isAudioReady) return;
         
-        currentTargetNote = noteName; // Update target for matching logic
-
+        currentTargetNote = noteName; 
+        
+        // BLIND SPOT LOGIC: Ignore Mic for 0.8s while piano plays
+        ignoreMicInput = true;
+        
         sampler.triggerAttackRelease(noteName, duration);
         const keyEl = document.getElementById(`key-${noteName}`);
         if(keyEl) {
             keyEl.classList.add('active');
             setTimeout(() => keyEl.classList.remove('active'), 400);
         }
+        
+        // Re-enable Mic listening after attack phase
+        setTimeout(() => { ignoreMicInput = false; }, 800);
     }
 
     function renderPiano() {
@@ -551,6 +571,11 @@
             pent_major: [0,2,4,7,9]
         };
         const currentScaleIntervals = SCALES[scaleType];
+        
+        // Dynamic Keyboard Mapping Calculation
+        const startNoteObj = allNotes.find(n => n.val === min);
+        const startVal = startNoteObj ? startNoteObj.val : 0;
+
         const rangeNotes = allNotes.filter(n => n.val >= min && n.val <= max);
         const WHITE_W = 42; const BLACK_W = 28;
         let whiteCount = 0; let whiteNotes = []; let blackNotes = [];
@@ -579,12 +604,12 @@
                 if(e.type === 'touchstart') e.stopPropagation(); 
                 if(Tone.context.state !== 'running') await Tone.start();
                 if(sampler && isAudioReady) {
+                    // Play immediately without blind spot for manual clicks
                     sampler.triggerAttackRelease(note.name, 2.0);
-                    currentTargetNote = note.name; // Manual Set Target
+                    currentTargetNote = note.name;
                     div.classList.add('active');
                     setTimeout(() => div.classList.remove('active'), 200);
                     
-                    // Update Text
                     const prefix = TRANSLATIONS[currentLang].target;
                     document.getElementById('targetDisplay').innerText = prefix + getDisplayNote(note.name);
                 }
@@ -592,14 +617,15 @@
             div.addEventListener('mousedown', trigger);
             div.addEventListener('touchstart', trigger, {passive: false});
             
-            const KEYBOARD_MAP = { 'a':'C4', 'w':'C#4', 's':'D4', 'e':'D#4', 'd':'E4', 'f':'F4', 't':'F#4', 'g':'G4', 'y':'G#4', 'h':'A4', 'u':'A#4', 'j':'B4', 'k':'C5' };
-            const shortKey = Object.keys(KEYBOARD_MAP).find(k => KEYBOARD_MAP[k] === note.name);
-            if(shortKey && window.innerWidth > 600) {
-                const span = document.createElement('span');
-                span.className = 'key-label';
-                span.innerText = shortKey.toUpperCase();
-                div.appendChild(span);
+            // DYNAMIC KEYBOARD LABEL
+            const dist = note.val - startVal;
+            if(dist >= 0 && dist < KEY_SEQUENCE.length && window.innerWidth > 600) {
+                 const span = document.createElement('span');
+                 span.className = 'key-label';
+                 span.innerText = KEY_SEQUENCE[dist].toUpperCase();
+                 div.appendChild(span);
             }
+
             return div;
         };
 
@@ -654,9 +680,8 @@
             const prefix = TRANSLATIONS[currentLang].target;
             document.getElementById('targetDisplay').innerText = prefix + getDisplayNote(note.name);
             
-            // Reset match state visually for new note
-            document.getElementById('tunerDisplay').classList.remove('match');
-            document.getElementById('controlDeck').classList.remove('match-success');
+            document.getElementById('tunerDisplay').className = "tuner-display listening";
+            document.getElementById('controlDeck').className = "controls-container";
         }
 
         const intervalMs = intervalVal * 1000;
@@ -666,10 +691,7 @@
     async function startApp() {
         if (Tone.context.state !== 'running') await Tone.start();
         isPlaying = true;
-        
-        // Auto-enable Mic if not already
         if(!isMicActive) await toggleMic();
-
         document.getElementById('startBtn').style.display = 'none';
         document.getElementById('stopBtn').style.display = 'block';
         playRandom();
@@ -682,35 +704,54 @@
         document.getElementById('startBtn').style.display = 'block';
         document.getElementById('stopBtn').style.display = 'none';
         document.getElementById('targetDisplay').innerText = TRANSLATIONS[currentLang].ready;
-        document.getElementById('controlDeck').classList.remove('match-success');
-        
-        // Don't kill mic, just stop loop
+        document.getElementById('controlDeck').className = "controls-container";
+        // Reset flags
+        ignoreMicInput = false;
     }
-
-    const KEYBOARD_MAP = { 'a':'C4', 'w':'C#4', 's':'D4', 'e':'D#4', 'd':'E4', 'f':'F4', 't':'F#4', 'g':'G4', 'y':'G#4', 'h':'A4', 'u':'A#4', 'j':'B4', 'k':'C5' };
     
+    // --- KEYBOARD LISTENER LOGIC (DYNAMIC) ---
     window.addEventListener('keydown', async (e) => {
         if(e.repeat) return;
         const key = e.key.toLowerCase();
-        if(KEYBOARD_MAP[key]) {
+        
+        // Find index of key in our chromatic map
+        const keyIndex = KEY_SEQUENCE.indexOf(key);
+        if(keyIndex === -1) return;
+
+        // Calculate dynamic note based on minNote
+        const minVal = parseInt(document.getElementById('minNote').value);
+        const targetVal = minVal + keyIndex;
+        
+        // Find note object
+        const noteObj = allNotes.find(n => n.val === targetVal);
+        if(noteObj) {
             if(Tone.context.state !== 'running') await Tone.start();
-            const note = KEYBOARD_MAP[key];
-            const el = document.getElementById(`key-${note}`);
+            
+            const el = document.getElementById(`key-${noteObj.name}`);
             if(el) el.classList.add('active');
+            
             if(sampler && isAudioReady) {
-                sampler.triggerAttack(note);
-                currentTargetNote = note;
-                document.getElementById('targetDisplay').innerText = TRANSLATIONS[currentLang].target + getDisplayNote(note);
+                // Manual play - no blind spot needed
+                sampler.triggerAttack(noteObj.name);
+                currentTargetNote = noteObj.name;
+                document.getElementById('targetDisplay').innerText = TRANSLATIONS[currentLang].target + getDisplayNote(noteObj.name);
             }
         }
     });
+
     window.addEventListener('keyup', (e) => {
         const key = e.key.toLowerCase();
-        if(KEYBOARD_MAP[key]) {
-            const note = KEYBOARD_MAP[key];
-            const el = document.getElementById(`key-${note}`);
+        const keyIndex = KEY_SEQUENCE.indexOf(key);
+        if(keyIndex === -1) return;
+
+        const minVal = parseInt(document.getElementById('minNote').value);
+        const targetVal = minVal + keyIndex;
+        const noteObj = allNotes.find(n => n.val === targetVal);
+        
+        if(noteObj) {
+            const el = document.getElementById(`key-${noteObj.name}`);
             if(el) el.classList.remove('active');
-            if(sampler && isAudioReady) sampler.triggerRelease(note);
+            if(sampler && isAudioReady) sampler.triggerRelease(noteObj.name);
         }
     });
 
