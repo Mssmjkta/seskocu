@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vocal Coach (Ultra Sensitivity)</title>
+    <title>Vocal Coach (Android Pro)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         /* --- 1. LOGICAL COLOR SYSTEM (HSL) --- */
@@ -109,6 +109,18 @@
             font-size: 0.95rem; font-weight: 600; appearance: none; outline: none; transition: all 0.2s;
         }
         select:focus, input:focus { box-shadow: inset 0 2px 4px hsla(0,0%,0%,0.3), 0 0 0 2px var(--brand-vivid); }
+
+        /* Range Slider */
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; background: transparent; height: 30px; cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%; height: 6px; background: var(--c-input); border-radius: 3px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
+            background: var(--brand-vivid); margin-top: -6px; box-shadow: 0 0 10px var(--brand-vivid);
+        }
 
         /* --- BUTTONS --- */
         .action-btn {
@@ -246,9 +258,16 @@
     </div>
 
     <div class="grid-row">
-        <div class="input-group" style="grid-column: 1 / -1;">
+        <div class="input-group">
             <label id="lbl_interval">Interval Speed (Sec)</label>
             <input type="number" id="interval" value="3.5" min="2.0" step="0.5">
+        </div>
+    </div>
+    
+    <div class="grid-row" style="padding-top:10px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <div class="input-group">
+            <label id="lbl_gain">Mic Volume (iPhone Boost)</label>
+            <input type="range" id="micGainSlider" min="1" max="10" step="0.5" value="3" oninput="updateMicGain(this.value)">
         </div>
     </div>
 
@@ -271,22 +290,30 @@
 
 <script>
     const TRANSLATIONS = {
-        en: { title: "Vocal Coach", key: "Key Center", scale: "Scale Mode", start: "Range Start", end: "Range End", interval: "Interval (Sec)", btnStart: "Start Coaching", btnStop: "Stop", target: "Sing This: ", ready: "System Ready", mic: "Sing Now" },
-        tr: { title: "Ses Koçu", key: "Kök Ses", scale: "Gam Modu", start: "Başlangıç", end: "Bitiş", interval: "Aralık (sn)", btnStart: "Başlat", btnStop: "Durdur", target: "Bunu Söyle: ", ready: "Sistem Hazır", mic: "Söyle" }
+        en: { 
+            title: "Vocal Coach", key: "Key Center", scale: "Scale Mode", start: "Range Start", end: "Range End", 
+            interval: "Interval (Sec)", gain: "Mic Volume (Boost)",
+            btnStart: "Start Coaching", btnStop: "Stop", target: "Sing This: ", ready: "System Ready", mic: "Sing Now" 
+        },
+        tr: { 
+            title: "Ses Koçu", key: "Kök Ses", scale: "Gam Modu", start: "Başlangıç", end: "Bitiş", 
+            interval: "Aralık (sn)", gain: "Mikrofon Sesi (Boost)",
+            btnStart: "Başlat", btnStop: "Durdur", target: "Bunu Söyle: ", ready: "Sistem Hazır", mic: "Söyle" 
+        }
     };
 
     const NOTE_NAMES_EN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
     const NOTE_NAMES_TR = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
     const KEY_SEQUENCE = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';'];
 
-    let currentLang = 'en', sampler, reverb, mic, micGain, filterHighPass, limiter, analyser, isPlaying = false, timerId = null, allNotes = [], isAudioReady = false;
+    let currentLang = 'en', sampler, reverb, mic, micGain, filterHighPass, analyser, isPlaying = false, timerId = null, allNotes = [], isAudioReady = false;
     let currentTargetNote = null;
     let isMicActive = false;
     let detectionId = null;
     let ignoreMicInput = false;
     
-    // MAX SETTINGS (Hardcoded)
-    const NOISE_GATE_THRESHOLD = 0.20; // Aggressive gating
+    // Constant Gate for Android (Hidden from UI but active)
+    const NOISE_GATE_THRESHOLD = 0.02; 
 
     function autoCorrelate(buf, sampleRate) {
         let SIZE = buf.length;
@@ -294,6 +321,7 @@
         for (let i = 0; i < SIZE; i++) { let val = buf[i]; rms += val * val; }
         rms = Math.sqrt(rms / SIZE);
         
+        // Android Fix: Ignore low volume rumble/echo
         if (rms < NOISE_GATE_THRESHOLD) return -1; 
 
         let r1 = 0, r2 = SIZE - 1, thres = 0.2;
@@ -319,4 +347,440 @@
     }
 
     function getNoteNameFromMidi(midi) {
-        const notes = ["C", "C#",
+        const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const octave = Math.floor(midi / 12) - 1;
+        return notes[midi % 12] + octave;
+    }
+
+    function getNoteChroma(noteName) { return noteName.replace(/[0-9-]/g, ''); }
+
+    function updatePitch() {
+        if (!isMicActive || !analyser) return;
+
+        if(ignoreMicInput) {
+            const tunerEl = document.getElementById('tunerDisplay');
+            tunerEl.innerText = "(Playing...)";
+            tunerEl.className = "tuner-display blocked";
+            detectionId = requestAnimationFrame(updatePitch);
+            return;
+        }
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Float32Array(bufferLength);
+        analyser.getFloatTimeDomainData(dataArray);
+
+        const freq = autoCorrelate(dataArray, Tone.context.sampleRate);
+        const tunerEl = document.getElementById('tunerDisplay');
+        const deck = document.getElementById('controlDeck');
+
+        if (freq === -1) {
+            tunerEl.innerText = isMicActive ? "..." : "--";
+            tunerEl.className = "tuner-display listening";
+            deck.className = "controls-container";
+        } else {
+            const midi = frequencyToNote(freq);
+            const sungNote = getNoteNameFromMidi(midi);
+            tunerEl.innerText = getDisplayNote(sungNote);
+
+            if(currentTargetNote) {
+                const sungChroma = getNoteChroma(sungNote);
+                const targetChroma = getNoteChroma(currentTargetNote);
+
+                if (sungNote === currentTargetNote) {
+                    tunerEl.className = "tuner-display match-exact";
+                    deck.className = "controls-container match-exact";
+                    tunerEl.innerText = "EXACT: " + getDisplayNote(sungNote);
+                } else if (sungChroma === targetChroma) {
+                    tunerEl.className = "tuner-display match-octave";
+                    deck.className = "controls-container match-octave";
+                    tunerEl.innerText = "OCTAVE: " + getDisplayNote(sungNote);
+                } else {
+                    tunerEl.className = "tuner-display listening";
+                    deck.className = "controls-container";
+                }
+            }
+        }
+        detectionId = requestAnimationFrame(updatePitch);
+    }
+
+    async function toggleMic() {
+        if(isMicActive) {
+            if(mic) mic.close();
+            isMicActive = false;
+            document.getElementById('micBtn').classList.remove('active');
+            cancelAnimationFrame(detectionId);
+            document.getElementById('tunerDisplay').innerText = "--";
+            document.getElementById('tunerDisplay').className = "tuner-display";
+        } else {
+            if (Tone.context.state !== 'running') await Tone.start();
+            mic = new Tone.UserMedia();
+            try {
+                // ANDROID SPECIFIC: GOOG CONSTRAINTS
+                await mic.open({
+                    echoCancellation: true,
+                    noiseSuppression: false, 
+                    autoGainControl: true,
+                    googEchoCancellation: true,
+                    googAutoGainControl: true,
+                    googNoiseSuppression: true,
+                    googHighpassFilter: true
+                });
+                
+                micGain = Tone.context.createGain();
+                const sliderVal = document.getElementById('micGainSlider').value;
+                micGain.gain.value = parseFloat(sliderVal);
+                
+                // FILTER: HighPass at 100Hz to kill mud/feedback
+                filterHighPass = new Tone.Filter(100, "highpass");
+
+                analyser = Tone.context.createAnalyser();
+                analyser.fftSize = 2048;
+                
+                // Chain: Mic -> HighPass -> Gain -> Analyser
+                mic.connect(filterHighPass);
+                filterHighPass.connect(micGain);
+                micGain.connect(analyser);
+                
+                isMicActive = true;
+                document.getElementById('micBtn').classList.add('active');
+                document.getElementById('tunerDisplay').classList.add('listening');
+                
+                updatePitch();
+            } catch(e) {
+                console.error("Mic Error", e);
+                alert("Microphone access denied.");
+            }
+        }
+    }
+
+    function updateMicGain(val) {
+        if(micGain) micGain.gain.value = parseFloat(val);
+    }
+
+    // --- SETUP & UTILS ---
+    function toggleTheme() {
+        const html = document.documentElement;
+        const icon = document.getElementById('themeIcon');
+        if (html.getAttribute('data-theme') === 'dark') {
+            html.setAttribute('data-theme', 'light');
+            icon.innerText = '🌙';
+            localStorage.setItem('theme', 'light');
+        } else {
+            html.setAttribute('data-theme', 'dark');
+            icon.innerText = '☀️';
+            localStorage.setItem('theme', 'dark');
+        }
+    }
+    
+    (function loadTheme() {
+        const saved = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', saved);
+        document.getElementById('themeIcon').innerText = saved === 'dark' ? '☀️' : '🌙';
+    })();
+
+    async function initAudio() {
+        if(sampler) return;
+        document.getElementById('loader').style.display = 'flex';
+        reverb = new Tone.Reverb({ decay: 4, wet: 0.8 }).toDestination();
+        await reverb.generate();
+
+        sampler = new Tone.Sampler({
+            urls: { "C4": "C4.mp3", "A4": "A4.mp3", "C5": "C5.mp3" },
+            release: 1, 
+            baseUrl: "https://tonejs.github.io/audio/salamander/",
+            onload: () => {
+                isAudioReady = true;
+                document.getElementById('loader').style.display = 'none';
+                const btn = document.getElementById('startBtn');
+                btn.disabled = false;
+                btn.innerText = TRANSLATIONS[currentLang].btnStart;
+            }
+        }).connect(reverb);
+    }
+
+    function getDisplayNote(noteName) {
+        if(!noteName) return "";
+        if(currentLang === 'en') return noteName; 
+        const letter = noteName.replace(/[0-9]/g, ''); 
+        const octave = noteName.replace(/[^0-9]/g, ''); 
+        const index = NOTE_NAMES_EN.indexOf(letter);
+        return (index > -1) ? NOTE_NAMES_TR[index] + octave : noteName;
+    }
+
+    function setLang(lang) {
+        currentLang = lang;
+        const t = TRANSLATIONS[lang];
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector(`button[onclick="setLang('${lang}')"]`).classList.add('active');
+        document.querySelector('h1').innerText = t.title;
+        document.getElementById('lbl_key').innerText = t.key;
+        document.getElementById('lbl_scale').innerText = t.scale;
+        document.getElementById('lbl_start').innerText = t.start;
+        document.getElementById('lbl_end').innerText = t.end;
+        document.getElementById('lbl_interval').innerText = t.interval;
+        document.getElementById('lbl_gain').innerText = t.gain;
+        const btnStart = document.getElementById('startBtn');
+        if(!btnStart.disabled) btnStart.innerText = t.btnStart;
+        document.getElementById('stopBtn').innerText = t.btnStop;
+        if(!isPlaying) document.getElementById('targetDisplay').innerText = t.ready;
+        const opts = document.getElementById('scaleType').options;
+        for(let opt of opts) {
+            if(!opt.dataset.en) opt.dataset.en = opt.innerText;
+            if(lang === 'tr' && opt.dataset.tr) opt.innerText = opt.dataset.tr;
+            else opt.innerText = opt.dataset.en;
+        }
+        populateDropdowns(true); 
+    }
+
+    function populateDropdowns(preserveSelection = false) {
+        const rootSel = document.getElementById('rootKey');
+        const minSel = document.getElementById('minNote');
+        const maxSel = document.getElementById('maxNote');
+        const oldRoot = rootSel.value, oldMin = minSel.value, oldMax = maxSel.value;
+        rootSel.innerHTML = ""; minSel.innerHTML = ""; maxSel.innerHTML = "";
+        NOTE_NAMES_EN.forEach((n, i) => {
+            const displayName = (currentLang === 'tr') ? NOTE_NAMES_TR[i] : n;
+            rootSel.add(new Option(displayName, i));
+        });
+        allNotes.forEach(n => {
+            const displayName = getDisplayNote(n.name);
+            minSel.add(new Option(displayName, n.val));
+            maxSel.add(new Option(displayName, n.val));
+        });
+        if(preserveSelection) {
+            rootSel.value = oldRoot; minSel.value = oldMin; maxSel.value = oldMax;
+        } else {
+            minSel.value = allNotes.find(n => n.name === "C3").val;
+            maxSel.value = allNotes.find(n => n.name === "C5").val;
+        }
+    }
+
+    function init() {
+        for(let oct=2; oct<=7; oct++){
+            NOTE_NAMES_EN.forEach((n, i) => {
+                const name = n + oct;
+                const val = (oct * 12) + i;
+                allNotes.push({ name, val, baseIndex: i });
+            });
+        }
+        populateDropdowns(false);
+        renderPiano();
+        initAudio();
+    }
+
+    async function playNote(noteName, duration = 2.5) {
+        if (Tone.context.state !== 'running') await Tone.start();
+        if(!sampler || !isAudioReady) return;
+        
+        currentTargetNote = noteName; 
+        
+        // BLIND SPOT INCREASED TO 1.2s for REVERB TAIL
+        ignoreMicInput = true;
+        
+        sampler.triggerAttackRelease(noteName, duration);
+        const keyEl = document.getElementById(`key-${noteName}`);
+        if(keyEl) {
+            keyEl.classList.add('active');
+            setTimeout(() => keyEl.classList.remove('active'), 400);
+        }
+        
+        // Extended Wait
+        setTimeout(() => { ignoreMicInput = false; }, 1200);
+    }
+
+    function renderPiano() {
+        const board = document.getElementById('pianoBoard');
+        const scrollContainer = document.getElementById('scrollContainer');
+        board.innerHTML = ''; 
+        const min = parseInt(document.getElementById('minNote').value);
+        const max = parseInt(document.getElementById('maxNote').value);
+        const root = parseInt(document.getElementById('rootKey').value);
+        const scaleType = document.getElementById('scaleType').value;
+        
+        const SCALES = {
+            chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
+            major: [0,2,4,5,7,9,11],
+            minor: [0,2,3,5,7,8,10],
+            blues: [0,3,5,6,7,10],
+            pent_major: [0,2,4,7,9]
+        };
+        const currentScaleIntervals = SCALES[scaleType];
+        const startNoteObj = allNotes.find(n => n.val === min);
+        const startVal = startNoteObj ? startNoteObj.val : 0;
+        const rangeNotes = allNotes.filter(n => n.val >= min && n.val <= max);
+        const WHITE_W = 42; const BLACK_W = 28;
+        let whiteCount = 0; let whiteNotes = []; let blackNotes = [];
+
+        rangeNotes.forEach(n => {
+            if (n.name.includes('#')) blackNotes.push(n);
+            else { n.wIndex = whiteCount++; whiteNotes.push(n); }
+        });
+        const totalWidth = whiteCount * WHITE_W;
+        board.style.width = totalWidth + 'px';
+
+        const createKey = (cls, note, left) => {
+            const div = document.createElement('div');
+            const interval = (note.baseIndex - root + 12) % 12;
+            const isInScale = currentScaleIntervals.includes(interval);
+            div.className = `key ${cls} ${isInScale ? 'in-scale' : ''}`;
+            div.id = `key-${note.name}`;
+            div.style.left = left + 'px';
+            
+            const dot = document.createElement('div');
+            dot.className = 'scale-dot';
+            div.appendChild(dot);
+
+            const trigger = async (e) => {
+                e.preventDefault(); 
+                if(e.type === 'touchstart') e.stopPropagation(); 
+                if(Tone.context.state !== 'running') await Tone.start();
+                if(sampler && isAudioReady) {
+                    sampler.triggerAttackRelease(note.name, 2.0);
+                    currentTargetNote = note.name;
+                    div.classList.add('active');
+                    setTimeout(() => div.classList.remove('active'), 200);
+                    
+                    const prefix = TRANSLATIONS[currentLang].target;
+                    document.getElementById('targetDisplay').innerText = prefix + getDisplayNote(note.name);
+                }
+            };
+            div.addEventListener('mousedown', trigger);
+            div.addEventListener('touchstart', trigger, {passive: false});
+            
+            const dist = note.val - startVal;
+            if(dist >= 0 && dist < KEY_SEQUENCE.length && window.innerWidth > 600) {
+                 const span = document.createElement('span');
+                 span.className = 'key-label';
+                 span.innerText = KEY_SEQUENCE[dist].toUpperCase();
+                 div.appendChild(span);
+            }
+            return div;
+        };
+
+        whiteNotes.forEach(n => board.appendChild(createKey('white', n, n.wIndex * WHITE_W)));
+        blackNotes.forEach(n => {
+            const prevName = n.name.replace('#', '');
+            const prevWhite = whiteNotes.find(wn => wn.name === prevName);
+            if(prevWhite) {
+                const pos = (prevWhite.wIndex * WHITE_W) + (WHITE_W) - (BLACK_W / 2);
+                board.appendChild(createKey('black', n, pos));
+            }
+        });
+
+        setTimeout(() => {
+            const centerPos = (totalWidth / 2) - (scrollContainer.clientWidth / 2);
+            scrollContainer.scrollLeft = Math.max(0, centerPos);
+        }, 100);
+    }
+
+    function playRandom() {
+        if (!isPlaying) return;
+        const min = parseInt(document.getElementById('minNote').value);
+        const max = parseInt(document.getElementById('maxNote').value);
+        const root = parseInt(document.getElementById('rootKey').value);
+        const scale = document.getElementById('scaleType').value;
+        const intervalVal = parseFloat(document.getElementById('interval').value);
+        
+        const SCALES = {
+            chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
+            major: [0,2,4,5,7,9,11],
+            minor: [0,2,3,5,7,8,10],
+            blues: [0,3,5,6,7,10],
+            pent_major: [0,2,4,7,9]
+        };
+
+        const validNotes = allNotes.filter(n => {
+            if(n.val < min || n.val > max) return false;
+            const interval = (n.baseIndex - root + 12) % 12;
+            return SCALES[scale].includes(interval);
+        });
+
+        if(validNotes.length > 0) {
+            let weightedPool = [...validNotes];
+            const rootNotes = validNotes.filter(n => n.baseIndex === root);
+            for(let i=0; i<3; i++) weightedPool.push(...rootNotes);
+
+            const note = weightedPool[Math.floor(Math.random() * weightedPool.length)];
+            let noteDuration = intervalVal - 1;
+            if(noteDuration < 0.1) noteDuration = 0.1;
+            
+            playNote(note.name, noteDuration);
+            const prefix = TRANSLATIONS[currentLang].target;
+            document.getElementById('targetDisplay').innerText = prefix + getDisplayNote(note.name);
+            
+            document.getElementById('tunerDisplay').className = "tuner-display listening";
+            document.getElementById('controlDeck').className = "controls-container";
+        }
+
+        const intervalMs = intervalVal * 1000;
+        timerId = setTimeout(playRandom, intervalMs);
+    }
+
+    async function startApp() {
+        if (Tone.context.state !== 'running') await Tone.start();
+        isPlaying = true;
+        if(!isMicActive) await toggleMic();
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('stopBtn').style.display = 'block';
+        playRandom();
+    }
+
+    function stopApp() {
+        isPlaying = false;
+        clearTimeout(timerId);
+        if(sampler) sampler.releaseAll();
+        document.getElementById('startBtn').style.display = 'block';
+        document.getElementById('stopBtn').style.display = 'none';
+        document.getElementById('targetDisplay').innerText = TRANSLATIONS[currentLang].ready;
+        document.getElementById('controlDeck').className = "controls-container";
+        ignoreMicInput = false;
+    }
+    
+    // --- KEYBOARD LISTENER ---
+    window.addEventListener('keydown', async (e) => {
+        if(e.repeat) return;
+        const key = e.key.toLowerCase();
+        const keyIndex = KEY_SEQUENCE.indexOf(key);
+        if(keyIndex === -1) return;
+
+        const minVal = parseInt(document.getElementById('minNote').value);
+        const targetVal = minVal + keyIndex;
+        
+        const noteObj = allNotes.find(n => n.val === targetVal);
+        if(noteObj) {
+            if(Tone.context.state !== 'running') await Tone.start();
+            
+            const el = document.getElementById(`key-${noteObj.name}`);
+            if(el) el.classList.add('active');
+            
+            if(sampler && isAudioReady) {
+                sampler.triggerAttack(noteObj.name);
+                currentTargetNote = noteObj.name;
+                document.getElementById('targetDisplay').innerText = TRANSLATIONS[currentLang].target + getDisplayNote(noteObj.name);
+            }
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        const key = e.key.toLowerCase();
+        const keyIndex = KEY_SEQUENCE.indexOf(key);
+        if(keyIndex === -1) return;
+        const minVal = parseInt(document.getElementById('minNote').value);
+        const targetVal = minVal + keyIndex;
+        const noteObj = allNotes.find(n => n.val === targetVal);
+        
+        if(noteObj) {
+            const el = document.getElementById(`key-${noteObj.name}`);
+            if(el) el.classList.remove('active');
+            if(sampler && isAudioReady) sampler.triggerRelease(noteObj.name);
+        }
+    });
+
+    document.body.addEventListener('touchstart', async () => {
+        if(Tone.context.state !== 'running') await Tone.start();
+    }, { once: true, passive: true });
+
+    init();
+</script>
+</body>
+</html>
