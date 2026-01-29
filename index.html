@@ -402,52 +402,63 @@
         detectionId = requestAnimationFrame(updatePitch);
     }
 
-    async function toggleMic() {
-        if(isMicActive) {
-            if(mic) mic.close();
-            isMicActive = false;
-            document.getElementById('micBtn').classList.remove('active');
-            cancelAnimationFrame(detectionId);
-            document.getElementById('tunerDisplay').innerText = "--";
-            document.getElementById('tunerDisplay').className = "tuner-display";
-        } else {
-            if (Tone.context.state !== 'running') await Tone.start();
-            mic = new Tone.UserMedia();
-            try {
-                // iOS & ANDROID PRO CONSTRAINTS
-                await mic.open({
+        async function toggleMic() {
+            if(isMicActive) {
+                if(mic) mic.close();
+                isMicActive = false;
+                document.getElementById('micBtn').classList.remove('active');
+                cancelAnimationFrame(detectionId);
+                document.getElementById('tunerDisplay').innerText = "--";
+                document.getElementById('tunerDisplay').className = "tuner-display";
+            } else {
+                if (Tone.context.state !== 'running') await Tone.start();
+                mic = new Tone.UserMedia();
+                
+                // Define the "Pro" settings
+                const proConstraints = {
                     echoCancellation: true,
-                    noiseSuppression: false, // OFF for better vocal pitch tracking
+                    noiseSuppression: false,
                     autoGainControl: true,
-                    channelCount: 1,
-                    sampleRate: 48000,
                     latencyHint: 'interactive'
-                });
-                
-                micGain = Tone.context.createGain();
-                const sliderVal = document.getElementById('micGainSlider').value;
-                micGain.gain.value = parseFloat(sliderVal);
-                
-                filterHighPass = new Tone.Filter(80, "highpass"); // Lowered to 80Hz for baritones
-
-                analyser = Tone.context.createAnalyser();
-                analyser.fftSize = 2048;
-                
-                mic.connect(filterHighPass);
-                filterHighPass.connect(micGain);
-                micGain.connect(analyser);
-                
-                isMicActive = true;
-                document.getElementById('micBtn').classList.add('active');
-                document.getElementById('tunerDisplay').classList.add('listening');
-                
-                updatePitch();
-            } catch(e) {
-                console.error("Mic Error", e);
-                alert("Microphone access denied or unsupported.");
+                };
+        
+                try {
+                    // Attempt to open with the high-performance constraints
+                    await mic.open(proConstraints);
+                    
+                    // Re-link the audio chain
+                    micGain = Tone.context.createGain();
+                    const sliderVal = document.getElementById('micGainSlider').value;
+                    micGain.gain.value = parseFloat(sliderVal);
+                    
+                    filterHighPass = new Tone.Filter(80, "highpass");
+                    analyser = Tone.context.createAnalyser();
+                    analyser.fftSize = 2048;
+                    
+                    mic.connect(filterHighPass);
+                    filterHighPass.connect(micGain);
+                    micGain.connect(analyser);
+                    
+                    isMicActive = true;
+                    document.getElementById('micBtn').classList.add('active');
+                    document.getElementById('tunerDisplay').classList.add('listening');
+                    
+                    updatePitch();
+                } catch(e) {
+                    console.warn("Pro constraints failed, falling back to basic mic access", e);
+                    try {
+                        // FALLBACK: Just get the mic with no fancy extras to ensure it works
+                        await mic.open();
+                        isMicActive = true;
+                        document.getElementById('micBtn').classList.add('active');
+                        updatePitch();
+                    } catch(finalError) {
+                        console.error("Mic Error", finalError);
+                        alert("Microphone access denied. Please check your browser's site permissions (click the lock icon in the URL bar).");
+                    }
+                }
             }
         }
-    }
 
     function updateMicGain(val) {
         if(micGain) micGain.gain.value = parseFloat(val);
@@ -780,3 +791,4 @@
 </script>
 </body>
 </html>
+
