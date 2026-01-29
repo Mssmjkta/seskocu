@@ -1,1572 +1,919 @@
 <!DOCTYPE html>
-
 <html lang="en" data-theme="dark">
-
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-    <title>Vocal Coach (Android Pro)</title>
-
+    <title>Vocal Coach Pro (Harmony)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-
     <style>
-
         /* --- 1. LOGICAL COLOR SYSTEM (HSL) --- */
-
         :root {
-
             --hue-brand: 273;
-
             --hue-neutral: 240; 
-
             
-
-            --c-exact-hex: #4bc5da;
-
+            --c-exact-hex: #4bc5da; /* Turkuaz */
             --c-octave-hex: #e79e51;
 
-
-
             /* Light Mode Levels */
-
             --l-bg: 96%; --l-surface: 100%; --l-input: 94%;
-
             
-
             --brand-core: hsl(var(--hue-brand), 80%, 20%);
-
-            --brand-vivid: hsl(var(--hue-brand), 90%, 55%);
-
+            --brand-vivid: hsl(var(--hue-brand), 90%, 55%); /* Mor */
             --brand-dim:   hsl(var(--hue-brand), 60%, 10%);
-
         }
-
-
 
         [data-theme="dark"] {
-
             --l-bg: 5%; --l-surface: 8%; --l-input: 4%;
-
             --piano-white-bg: hsl(var(--hue-neutral), 10%, 14%);
-
             --piano-black-bg: hsl(var(--hue-neutral), 10%, 85%);
-
             --piano-border: 1px solid hsla(0,0%,0%,0.5);
-
         }
-
-
 
         [data-theme="light"] {
-
             --l-bg: 95%; --l-surface: 100%; --l-input: 92%;
-
             --piano-white-bg: #fff; --piano-black-bg: #1a1a1a;
-
             --piano-border: 1px solid hsla(0,0%,0%,0.2);
-
         }
-
-
 
         /* Semantic Variables */
-
         :root {
-
             --c-bg: hsl(var(--hue-neutral), 10%, var(--l-bg));
-
             --c-surface: hsl(var(--hue-neutral), 10%, var(--l-surface));
-
             --c-input: hsl(var(--hue-neutral), 10%, var(--l-input));
-
             
-
             --c-text-main: hsl(var(--hue-neutral), 10%, 90%);
-
             --c-text-muted: hsla(var(--hue-neutral), 10%, 50%, 0.8);
-
             
-
             --shadow-surface: 0 1px 0 hsla(0,0%,100%,0.05) inset, 0 20px 40px -10px hsla(0,0%,0%,0.5);
-
         }
-
-
 
         [data-theme="light"] {
-
             --c-text-main: hsl(var(--hue-neutral), 10%, 10%);
-
         }
-
-
 
         body {
-
             font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-
             background-color: var(--c-bg);
-
             color: var(--c-text-main);
-
             display: flex; flex-direction: column; align-items: center;
-
             min-height: 100vh; margin: 0; padding: clamp(1rem, 5vw, 2rem);
-
             box-sizing: border-box; transition: background 0.4s ease;
-
             -webkit-tap-highlight-color: transparent;
-
         }
-
-
 
         /* --- HEADER --- */
-
         .header-bar {
-
             width: 100%; max-width: 680px; display: flex; justify-content: space-between; align-items: center;
-
             margin-bottom: 1.5rem; padding: 0 0.5rem;
-
         }
-
-
 
         h1 {
-
             margin: 0; font-size: clamp(1.4rem, 4vw, 1.8rem); font-weight: 900; letter-spacing: -0.02em;
-
             color: var(--c-text-main); display: inline-block;
-
         }
-
         h1::after {
-
             content: ''; display: block; width: 40%; height: 4px; background: var(--brand-vivid);
-
             border-radius: 2px; margin-top: 4px; box-shadow: 0 0 10px var(--brand-vivid);
-
         }
-
-
 
         /* --- CONTROL DECK --- */
-
         .controls-container {
-
             width: 100%; max-width: 680px; background: var(--c-surface);
-
             border-top: 2px solid var(--brand-vivid); border-bottom: 1px solid hsla(0,0%,0%,0.3);
-
             border-radius: 24px; padding: clamp(1.5rem, 4vw, 2.5rem);
-
             display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem;
-
             box-shadow: var(--shadow-surface); position: relative; overflow: hidden;
-
-            transition: border-color 0.2s;
-
+            transition: border-color 0.4s, box-shadow 0.4s;
         }
-
         
-
         .controls-container.match-exact {
-
             border-top-color: var(--c-exact-hex);
-
-            box-shadow: 0 0 30px rgba(75, 197, 218, 0.3);
-
+            box-shadow: 0 0 40px rgba(75, 197, 218, 0.25);
         }
-
-
 
         .controls-container.match-octave {
-
             border-top-color: var(--c-octave-hex);
-
-            box-shadow: 0 0 30px rgba(231, 158, 81, 0.3);
-
+            box-shadow: 0 0 40px rgba(231, 158, 81, 0.25);
+        }
+        
+        /* FULL COMPLETE STATE (PURPLE) */
+        .controls-container.match-complete {
+            border-top-color: var(--brand-vivid);
+            box-shadow: 0 0 60px var(--brand-vivid); /* Güçlü Mor Glow */
+            animation: pulsePurple 2s infinite;
         }
 
-
+        @keyframes pulsePurple {
+            0% { box-shadow: 0 0 40px var(--brand-vivid); }
+            50% { box-shadow: 0 0 70px var(--brand-vivid); }
+            100% { box-shadow: 0 0 40px var(--brand-vivid); }
+        }
 
         /* --- INPUTS --- */
-
         .grid-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; }
-
         .input-group { display: flex; flex-direction: column; gap: 0.5rem; }
-
-
 
         label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--c-text-muted); }
 
-
-
         select, input[type="number"] {
-
             width: 100%; background: var(--c-input); color: var(--c-text-main); border: none;
-
             box-shadow: inset 0 2px 4px hsla(0,0%,0%,0.2), inset 0 0 0 1px hsla(0,0%,0%,0.05);
-
             border-bottom: 1px solid hsla(0,0%,100%,0.05); padding: 14px 16px; border-radius: 12px;
-
             font-size: 0.95rem; font-weight: 600; appearance: none; outline: none; transition: all 0.2s;
-
         }
-
         select:focus, input:focus { box-shadow: inset 0 2px 4px hsla(0,0%,0%,0.3), 0 0 0 2px var(--brand-vivid); }
 
-
-
         /* Range Slider */
-
         input[type="range"] {
-
             -webkit-appearance: none; width: 100%; background: transparent; height: 30px; cursor: pointer;
-
         }
-
         input[type="range"]::-webkit-slider-runnable-track {
-
             width: 100%; height: 6px; background: var(--c-input); border-radius: 3px;
-
         }
-
         input[type="range"]::-webkit-slider-thumb {
-
             -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%;
-
             background: var(--brand-vivid); margin-top: -6px; box-shadow: 0 0 10px var(--brand-vivid);
-
         }
-
-
 
         /* --- BUTTONS --- */
-
         .action-btn {
-
             width: 100%; padding: 18px; border: none; border-radius: 16px;
-
             font-size: 1rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
-
             cursor: pointer; position: relative; margin-top: 10px;
-
             transition: transform 0.1s, box-shadow 0.1s, filter 0.2s;
-
         }
-
         .btn-start {
-
             background: linear-gradient(135deg, var(--brand-vivid) 0%, var(--brand-core) 100%); color: #fff;
-
             box-shadow: inset 0 1px 0 hsla(0,0%,100%,0.3), 0 6px 0 var(--brand-dim), 0 12px 20px hsla(0,0%,0%,0.3);
-
             text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-
         }
-
         .btn-start:active { transform: translateY(4px); box-shadow: inset 0 2px 4px hsla(0,0%,0%,0.3), 0 2px 0 var(--brand-dim); }
-
         .btn-stop {
-
             display: none; background: linear-gradient(135deg, #ff5e57, #ff3f34); color: white;
-
             box-shadow: inset 0 1px 0 hsla(0,0%,100%,0.3), 0 6px 0 #b33939, 0 12px 20px hsla(0,0%,0%,0.3);
-
         }
-
         .btn-stop:active { transform: translateY(4px); box-shadow: inset 0 2px 4px rgba(0,0,0,0.3), 0 2px 0 #b33939; }
-
         .btn-start:disabled { filter: grayscale(1) opacity(0.5); cursor: not-allowed; transform: none; }
 
-
-
         /* --- UTILITY ICONS --- */
-
         .utility-row { display: flex; gap: 8px; }
-
         .icon-btn, .lang-btn {
-
             background: var(--c-surface); border: 1px solid hsla(0,0%,100%,0.05);
-
             color: var(--c-text-muted); width: 36px; height: 36px; border-radius: 50%;
-
             display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s;
-
         }
-
         .icon-btn.active { color: #fff; background: var(--brand-vivid); box-shadow: 0 0 10px var(--brand-vivid); border-color: transparent;}
-
         
-
         .lang-group { display: flex; background: var(--c-input); padding: 3px; border-radius: 20px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); }
-
         .lang-btn { width: auto; height: auto; padding: 4px 10px; background: transparent; border: none; font-size: 0.75rem; font-weight: 700; border-radius: 14px; }
-
         .lang-btn.active { background: var(--brand-core); color: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
 
-
-
         /* --- PIANO --- */
-
         .piano-wrapper {
-
             width: 100%; max-width: 900px; background: var(--c-input);
-
             padding: 20px 0; border-radius: 20px; box-shadow: inset 0 4px 12px rgba(0,0,0,0.3);
-
             border-bottom: 1px solid hsla(0,0%,100%,0.05);
-
         }
-
         .piano-scroll-container { width: 100%; overflow-x: auto; text-align: center; scrollbar-width: none; }
-
         .piano-board { position: relative; display: inline-block; height: 190px; margin: 0 20px; user-select: none; }
-
         .key { position: absolute; border-radius: 0 0 6px 6px; cursor: pointer; box-sizing: border-box; transition: 0.1s; }
 
-
-
         .white {
-
             height: 170px; width: 42px; background: var(--piano-white-bg); border: var(--piano-border);
-
             z-index: 1; top: 0; box-shadow: inset 0 -5px 10px rgba(0,0,0,0.1);
-
         }
-
         .white.active {
-
             background: var(--brand-vivid); border-color: var(--brand-vivid); transform: scaleY(0.99);
-
             box-shadow: 0 0 25px var(--brand-vivid); z-index: 5;
-
         }
-
         .black {
-
             height: 110px; width: 28px; background: var(--piano-black-bg);
-
             border: 1px solid rgba(0,0,0,0.2); z-index: 10; top: 0; border-radius: 0 0 5px 5px;
-
             box-shadow: 2px 4px 8px rgba(0,0,0,0.3);
-
         }
-
         .black.active { background: var(--brand-vivid); box-shadow: 0 0 20px var(--brand-vivid); border-bottom: none; }
 
-
-
         .scale-dot {
-
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-
             width: 6px; height: 6px; background-color: var(--brand-vivid);
-
             border-radius: 50%; box-shadow: 0 0 8px var(--brand-vivid); pointer-events: none; display: none;
-
         }
-
         .black .scale-dot { bottom: 12px; }
-
         .key.in-scale .scale-dot { display: block; }
-
         .key:not(.in-scale) { opacity: 0.3; pointer-events: none; filter: grayscale(1); } 
-
         
-
         /* --- TUNER UI --- */
-
         .status-area { text-align: center; margin-top: 15px; }
-
-        .target-note { color: var(--c-text-muted); font-size: 0.9rem; font-weight: 500; margin-bottom: 5px; }
-
-        
-
-        .tuner-display {
-
-            display: inline-flex; align-items: center; justify-content: center;
-
-            height: 40px; padding: 0 20px; border-radius: 20px;
-
-            background: rgba(0,0,0,0.2); font-weight: 800; font-size: 1.1rem;
-
-            color: var(--c-text-muted); border: 1px solid transparent;
-
-            min-width: 100px; transition: all 0.2s;
-
+        .target-note { 
+            color: var(--c-text-muted); font-size: 0.9rem; font-weight: 500; margin-bottom: 5px; 
+            display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
         }
-
         
-
+        .note-badge {
+            padding: 2px 8px; border-radius: 6px; background: rgba(255,255,255,0.05); 
+            border: 1px solid transparent; transition: 0.3s;
+        }
+        .note-badge.hit { background: var(--c-exact-hex); color: #000; box-shadow: 0 0 10px var(--c-exact-hex); font-weight: 800; transform: scale(1.1); }
+        
+        .tuner-display {
+            display: inline-flex; align-items: center; justify-content: center;
+            height: 40px; padding: 0 20px; border-radius: 20px;
+            background: rgba(0,0,0,0.2); font-weight: 800; font-size: 1.1rem;
+            color: var(--c-text-muted); border: 1px solid transparent;
+            min-width: 100px; transition: all 0.2s;
+        }
+        
         .tuner-display.listening { color: var(--c-text-main); border-color: rgba(255,255,255,0.2); }
-
         .tuner-display.match-exact { background: var(--c-exact-hex); color: #000; box-shadow: 0 0 20px rgba(75, 197, 218, 0.4); transform: scale(1.05); }
-
         .tuner-display.match-octave { background: var(--c-octave-hex); color: #000; box-shadow: 0 0 20px rgba(231, 158, 81, 0.4); transform: scale(1.05); }
-
         .tuner-display.blocked { opacity: 0.5; font-size: 0.8rem; }
 
-
-
         .mic-icon-svg { width: 16px; height: 16px; fill: currentColor; }
-
         .loading-overlay { position: fixed; inset: 0; background: var(--c-bg); display: flex; justify-content: center; align-items: center; z-index: 999; flex-direction: column; gap: 15px; color: var(--brand-vivid);}
-
         .spinner { width: 30px; height: 30px; border: 3px solid hsla(var(--hue-brand), 100%, 20%, 0.3); border-top: 3px solid var(--brand-vivid); border-radius: 50%; animation: spin 0.8s linear infinite; }
-
         @keyframes spin { to { transform: rotate(360deg); } }
-
         
-
         .key-label {
-
             position: absolute; bottom: 5px; left: 0; right: 0; text-align: center;
-
             font-size: 9px; color: var(--c-text-muted); pointer-events: none; font-weight: 700; opacity: 0.7;
-
         }
-
     </style>
-
 </head>
-
 <body>
 
-
-
 <div class="loading-overlay" id="loader">
-
     <div class="spinner"></div>
-
     <div style="font-size: 0.9rem; letter-spacing: 0.05em; text-transform: uppercase;">System Loading</div>
-
 </div>
-
-
 
 <div class="header-bar">
-
     <h1>Vocal Coach</h1>
-
     <div class="utility-row">
-
         <button class="icon-btn" onclick="toggleMic()" id="micBtn" title="Toggle Microphone">
-
             <svg class="mic-icon-svg" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-
         </button>
-
         <button class="icon-btn" onclick="toggleTheme()" id="themeIcon">☀️</button>
-
         <div class="lang-group">
-
             <button class="lang-btn active" onclick="setLang('en')">EN</button>
-
             <button class="lang-btn" onclick="setLang('tr')">TR</button>
-
         </div>
-
     </div>
-
 </div>
-
-
 
 <div class="controls-container" id="controlDeck">
-
     <div class="grid-row">
-
         <div class="input-group"><label id="lbl_key">Key Center</label><select id="rootKey" onchange="renderPiano()"></select></div>
-
         <div class="input-group"><label id="lbl_scale">Scale Mode</label>
-
             <select id="scaleType" onchange="renderPiano()">
-
                 <option value="chromatic">Chromatic (All)</option>
-
                 <option value="major" selected>Major</option>
-
                 <option value="minor">Natural Minor</option>
-
                 <option value="blues">Blues</option>
-
                 <option value="pent_major">Pentatonic Major</option>
-
             </select>
-
         </div>
-
     </div>
 
-
-
     <div class="grid-row">
-
         <div class="input-group"><label id="lbl_start">Range Start</label><select id="minNote" onchange="renderPiano()"></select></div>
-
         <div class="input-group"><label id="lbl_end">Range End</label><select id="maxNote" onchange="renderPiano()"></select></div>
-
     </div>
-
-
+    
+    <div class="grid-row">
+        <div class="input-group">
+            <label id="lbl_count">Note Count</label>
+            <select id="noteCount">
+                <option value="1">1 Note (Single)</option>
+                <option value="2">2 Notes (Interval)</option>
+                <option value="3">3 Notes (Triad)</option>
+                <option value="4">4 Notes (7th/Add)</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label id="lbl_style">Playback Style</label>
+            <select id="playStyle">
+                <option value="arp" selected>Arpeggio (Low->High)</option>
+                <option value="chord">Chord (Together)</option>
+            </select>
+        </div>
+    </div>
 
     <div class="grid-row">
-
         <div class="input-group">
-
             <label id="lbl_interval">Interval Speed (Sec)</label>
-
-            <input type="number" id="interval" value="3.5" min="2.0" step="0.5">
-
+            <input type="number" id="interval" value="6.0" min="2.0" step="0.5">
         </div>
-
     </div>
-
     
-
     <div class="grid-row" style="padding-top:10px; border-top: 1px solid rgba(255,255,255,0.1);">
-
         <div class="input-group">
-
             <label id="lbl_gain">Mic Volume (iPhone Boost)</label>
-
             <input type="range" id="micGainSlider" min="1" max="10" step="0.5" value="3" oninput="updateMicGain(this.value)">
-
         </div>
-
     </div>
-
-
 
     <div style="margin-top: 10px;">
-
         <button id="startBtn" class="action-btn btn-start" onclick="startApp()" disabled>Initialize System</button>
-
         <button id="stopBtn" class="action-btn btn-stop" onclick="stopApp()">Stop Sequence</button>
-
         
-
         <div class="status-area">
-
             <div class="target-note" id="targetDisplay">System Ready</div>
-
             <div class="tuner-display" id="tunerDisplay">--</div>
-
         </div>
-
     </div>
-
 </div>
-
-
 
 <div class="piano-wrapper">
-
     <div class="piano-scroll-container" id="scrollContainer">
-
         <div id="pianoBoard" class="piano-board"></div>
-
     </div>
-
 </div>
 
-
-
 <script>
-
     const TRANSLATIONS = {
-
         en: { 
-
             title: "Vocal Coach", key: "Key Center", scale: "Scale Mode", start: "Range Start", end: "Range End", 
-
+            count: "Note Count", style: "Playback Style",
             interval: "Interval (Sec)", gain: "Mic Volume (Boost)",
-
-            btnStart: "Start Coaching", btnStop: "Stop", target: "Sing This: ", ready: "System Ready", mic: "Sing Now" 
-
+            btnStart: "Start Coaching", btnStop: "Stop", target: "Sing This: ", ready: "System Ready", mic: "Sing Now",
+            styles: { arp: "Arpeggio", chord: "Chord" },
+            counts: { 1: "1 Note", 2: "2 Notes", 3: "3 Notes", 4: "4 Notes" }
         },
-
         tr: { 
-
             title: "Ses Koçu", key: "Kök Ses", scale: "Gam Modu", start: "Başlangıç", end: "Bitiş", 
-
+            count: "Nota Sayısı", style: "Çalışma Tarzı",
             interval: "Aralık (sn)", gain: "Mikrofon Sesi (Boost)",
-
-            btnStart: "Başlat", btnStop: "Durdur", target: "Bunu Söyle: ", ready: "Sistem Hazır", mic: "Söyle" 
-
+            btnStart: "Başlat", btnStop: "Durdur", target: "Bunları Söyle: ", ready: "Sistem Hazır", mic: "Söyle",
+            styles: { arp: "Arpej (Sıralı)", chord: "Akor (Aynı Anda)" },
+            counts: { 1: "1 Nota (Tek)", 2: "2 Nota (Aralık)", 3: "3 Nota (Akor)", 4: "4 Nota (7'li)" }
         }
-
     };
 
-
-
     const NOTE_NAMES_EN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
     const NOTE_NAMES_TR = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
-
     const KEY_SEQUENCE = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';'];
 
-
-
     let currentLang = 'en', sampler, reverb, mic, micGain, filterHighPass, analyser, isPlaying = false, timerId = null, allNotes = [], isAudioReady = false;
-
-    let currentTargetNote = null;
-
-    let isMicActive = false;
-
-    let detectionId = null;
-
-    let ignoreMicInput = false;
-
     
-
+    // YENİ DEĞİŞKENLER: ÇOKLU NOTA SİSTEMİ İÇİN
+    let currentTargetNotes = []; // ['C4', 'E4', 'G4'] gibi
+    let matchedStatus = [];      // [true, false, false] gibi
+    
+    let isMicActive = false;
+    let detectionId = null;
+    let ignoreMicInput = false;
+    
     // Constant Gate for Android (Hidden from UI but active)
-
     const NOISE_GATE_THRESHOLD = 0.02; 
 
-
-
     function autoCorrelate(buf, sampleRate) {
-
         let SIZE = buf.length;
-
         let rms = 0;
-
         for (let i = 0; i < SIZE; i++) { let val = buf[i]; rms += val * val; }
-
         rms = Math.sqrt(rms / SIZE);
-
         
-
         // Android Fix: Ignore low volume rumble/echo
-
         if (rms < NOISE_GATE_THRESHOLD) return -1; 
 
-
-
         let r1 = 0, r2 = SIZE - 1, thres = 0.2;
-
         for (let i = 0; i < SIZE / 2; i++) if (Math.abs(buf[i]) < thres) { r1 = i; break; }
-
         for (let i = 1; i < SIZE / 2; i++) if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
-
         buf = buf.slice(r1, r2); SIZE = buf.length;
-
         let c = new Array(SIZE).fill(0);
-
         for (let i = 0; i < SIZE; i++) for (let j = 0; j < SIZE - i; j++) c[i] = c[i] + buf[j] * buf[j + i];
-
         let d = 0; while (c[d] > c[d + 1]) d++;
-
         let maxval = -1, maxpos = -1;
-
         for (let i = d; i < SIZE; i++) { if (c[i] > maxval) { maxval = c[i]; maxpos = i; } }
-
         let T0 = maxpos;
-
         let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
-
         let a = (x1 + x3 - 2 * x2) / 2;
-
         let b = (x3 - x1) / 2;
-
         if (a) T0 = T0 - b / (2 * a);
-
         return sampleRate / T0;
-
     }
-
-
 
     function frequencyToNote(freq) {
-
         const noteNum = 12 * (Math.log(freq / 440) / Math.log(2)) + 69;
-
         return Math.round(noteNum);
-
     }
-
-
 
     function getNoteNameFromMidi(midi) {
-
         const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
         const octave = Math.floor(midi / 12) - 1;
-
         return notes[midi % 12] + octave;
-
     }
-
-
-
-    function getNoteChroma(noteName) { return noteName.replace(/[0-9-]/g, ''); }
-
-
 
     function updatePitch() {
-
         if (!isMicActive || !analyser) return;
 
-
-
         if(ignoreMicInput) {
-
             const tunerEl = document.getElementById('tunerDisplay');
-
             tunerEl.innerText = "(Playing...)";
-
             tunerEl.className = "tuner-display blocked";
-
             detectionId = requestAnimationFrame(updatePitch);
-
             return;
-
         }
-
-
 
         const bufferLength = analyser.frequencyBinCount;
-
         const dataArray = new Float32Array(bufferLength);
-
         analyser.getFloatTimeDomainData(dataArray);
 
-
-
         const freq = autoCorrelate(dataArray, Tone.context.sampleRate);
-
         const tunerEl = document.getElementById('tunerDisplay');
-
         const deck = document.getElementById('controlDeck');
 
-
-
         if (freq === -1) {
-
             tunerEl.innerText = isMicActive ? "..." : "--";
-
             tunerEl.className = "tuner-display listening";
-
-            deck.className = "controls-container";
-
+            // Eğer hepsi tamamlanmadıysa nötr yap, tamamlandıysa dokunma (mor kalacak)
+            const allComplete = matchedStatus.length > 0 && matchedStatus.every(s => s === true);
+            if(!allComplete) deck.className = "controls-container";
         } else {
-
             const midi = frequencyToNote(freq);
-
             const sungNote = getNoteNameFromMidi(midi);
-
             tunerEl.innerText = getDisplayNote(sungNote);
 
-
-
-            if(currentTargetNote) {
-
-                const sungChroma = getNoteChroma(sungNote);
-
-                const targetChroma = getNoteChroma(currentTargetNote);
-
-
-
-                if (sungNote === currentTargetNote) {
-
-                    tunerEl.className = "tuner-display match-exact";
-
-                    deck.className = "controls-container match-exact";
-
-                    tunerEl.innerText = "EXACT: " + getDisplayNote(sungNote);
-
-                } else if (sungChroma === targetChroma) {
-
-                    tunerEl.className = "tuner-display match-octave";
-
-                    deck.className = "controls-container match-octave";
-
-                    tunerEl.innerText = "OCTAVE: " + getDisplayNote(sungNote);
-
+            // ÇOKLU NOTA KONTROLÜ
+            if(currentTargetNotes.length > 0) {
+                // Söylenen notanın hedef listesinde olup olmadığına bak
+                const matchIndex = currentTargetNotes.indexOf(sungNote);
+                
+                if (matchIndex > -1) {
+                    // Doğru nota!
+                    if (!matchedStatus[matchIndex]) {
+                        // Yeni bulundu
+                        matchedStatus[matchIndex] = true;
+                        updateTargetDisplay(); // UI'ı güncelle (Yeşil yap)
+                        
+                        // ANLIK GERİ BİLDİRİM (TURKUAZ)
+                        tunerEl.className = "tuner-display match-exact";
+                        deck.className = "controls-container match-exact";
+                        
+                        // Piyano tuşunu yak
+                        const keyEl = document.getElementById(`key-${sungNote}`);
+                        if(keyEl) {
+                            keyEl.classList.add('active');
+                            setTimeout(() => keyEl.classList.remove('active'), 500);
+                        }
+                    } else {
+                         // Zaten bulunmuştu, yine de geri bildirim ver
+                         tunerEl.className = "tuner-display match-exact";
+                    }
                 } else {
-
-                    tunerEl.className = "tuner-display listening";
-
-                    deck.className = "controls-container";
-
+                    // Yanlış nota
+                    const allComplete = matchedStatus.every(s => s === true);
+                    if(!allComplete) {
+                         tunerEl.className = "tuner-display listening";
+                         deck.className = "controls-container";
+                    }
                 }
 
+                // HEPSİ TAMAMLANDI MI?
+                if (matchedStatus.every(s => s === true)) {
+                    // MOR MODU AÇ (Brand Vivid)
+                    deck.className = "controls-container match-complete";
+                    tunerEl.innerText = "COMPLETE!";
+                }
             }
-
         }
-
         detectionId = requestAnimationFrame(updatePitch);
-
     }
 
+    // Hedef notaları ekrana yazdıran fonksiyon (Bulunanları işaretle)
+    function updateTargetDisplay() {
+        const container = document.getElementById('targetDisplay');
+        container.innerHTML = ''; // Temizle
+        
+        if (currentTargetNotes.length === 0) {
+            container.innerText = TRANSLATIONS[currentLang].ready;
+            return;
+        }
 
+        currentTargetNotes.forEach((note, index) => {
+            const span = document.createElement('span');
+            span.className = matchedStatus[index] ? 'note-badge hit' : 'note-badge';
+            span.innerText = getDisplayNote(note);
+            container.appendChild(span);
+        });
+    }
 
     async function toggleMic() {
-
         if(isMicActive) {
-
             if(mic) mic.close();
-
             isMicActive = false;
-
             document.getElementById('micBtn').classList.remove('active');
-
             cancelAnimationFrame(detectionId);
-
             document.getElementById('tunerDisplay').innerText = "--";
-
             document.getElementById('tunerDisplay').className = "tuner-display";
-
         } else {
-
             if (Tone.context.state !== 'running') await Tone.start();
-
             mic = new Tone.UserMedia();
-
             try {
-
-                // ANDROID SPECIFIC: GOOG CONSTRAINTS
-
                 await mic.open({
-
-                    echoCancellation: true,
-
-                    noiseSuppression: false, 
-
-                    autoGainControl: true,
-
-                    googEchoCancellation: true,
-
-                    googAutoGainControl: true,
-
-                    googNoiseSuppression: true,
-
-                    googHighpassFilter: true
-
+                    echoCancellation: true, noiseSuppression: false, autoGainControl: true,
+                    googEchoCancellation: true, googAutoGainControl: true, googNoiseSuppression: true, googHighpassFilter: true
                 });
-
                 
-
                 micGain = Tone.context.createGain();
-
                 const sliderVal = document.getElementById('micGainSlider').value;
-
                 micGain.gain.value = parseFloat(sliderVal);
-
                 
-
-                // FILTER: HighPass at 100Hz to kill mud/feedback
-
                 filterHighPass = new Tone.Filter(100, "highpass");
 
-
-
                 analyser = Tone.context.createAnalyser();
-
                 analyser.fftSize = 2048;
-
                 
-
-                // Chain: Mic -> HighPass -> Gain -> Analyser
-
                 mic.connect(filterHighPass);
-
                 filterHighPass.connect(micGain);
-
                 micGain.connect(analyser);
-
                 
-
                 isMicActive = true;
-
                 document.getElementById('micBtn').classList.add('active');
-
                 document.getElementById('tunerDisplay').classList.add('listening');
-
                 
-
                 updatePitch();
-
             } catch(e) {
-
                 console.error("Mic Error", e);
-
                 alert("Microphone access denied.");
-
             }
-
         }
-
     }
-
-
 
     function updateMicGain(val) {
-
         if(micGain) micGain.gain.value = parseFloat(val);
-
     }
-
-
 
     // --- SETUP & UTILS ---
-
     function toggleTheme() {
-
         const html = document.documentElement;
-
         const icon = document.getElementById('themeIcon');
-
         if (html.getAttribute('data-theme') === 'dark') {
-
             html.setAttribute('data-theme', 'light');
-
             icon.innerText = '🌙';
-
             localStorage.setItem('theme', 'light');
-
         } else {
-
             html.setAttribute('data-theme', 'dark');
-
             icon.innerText = '☀️';
-
             localStorage.setItem('theme', 'dark');
-
         }
-
     }
-
     
-
     (function loadTheme() {
-
         const saved = localStorage.getItem('theme') || 'dark';
-
         document.documentElement.setAttribute('data-theme', saved);
-
         document.getElementById('themeIcon').innerText = saved === 'dark' ? '☀️' : '🌙';
-
     })();
 
-
-
     async function initAudio() {
-
         if(sampler) return;
-
         document.getElementById('loader').style.display = 'flex';
-
         reverb = new Tone.Reverb({ decay: 4, wet: 0.8 }).toDestination();
-
         await reverb.generate();
 
-
-
         sampler = new Tone.Sampler({
-
             urls: { "C4": "C4.mp3", "A4": "A4.mp3", "C5": "C5.mp3" },
-
             release: 1, 
-
             baseUrl: "https://tonejs.github.io/audio/salamander/",
-
             onload: () => {
-
                 isAudioReady = true;
-
                 document.getElementById('loader').style.display = 'none';
-
                 const btn = document.getElementById('startBtn');
-
                 btn.disabled = false;
-
                 btn.innerText = TRANSLATIONS[currentLang].btnStart;
-
             }
-
         }).connect(reverb);
-
     }
-
-
 
     function getDisplayNote(noteName) {
-
         if(!noteName) return "";
-
         if(currentLang === 'en') return noteName; 
-
         const letter = noteName.replace(/[0-9]/g, ''); 
-
         const octave = noteName.replace(/[^0-9]/g, ''); 
-
         const index = NOTE_NAMES_EN.indexOf(letter);
-
         return (index > -1) ? NOTE_NAMES_TR[index] + octave : noteName;
-
     }
-
-
 
     function setLang(lang) {
-
         currentLang = lang;
-
         const t = TRANSLATIONS[lang];
-
         document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-
         document.querySelector(`button[onclick="setLang('${lang}')"]`).classList.add('active');
-
         document.querySelector('h1').innerText = t.title;
-
         document.getElementById('lbl_key').innerText = t.key;
-
         document.getElementById('lbl_scale').innerText = t.scale;
-
         document.getElementById('lbl_start').innerText = t.start;
-
         document.getElementById('lbl_end').innerText = t.end;
-
         document.getElementById('lbl_interval').innerText = t.interval;
-
         document.getElementById('lbl_gain').innerText = t.gain;
-
+        
+        // Yeni Label Çevirileri
+        document.getElementById('lbl_count').innerText = t.count;
+        document.getElementById('lbl_style').innerText = t.style;
+        
         const btnStart = document.getElementById('startBtn');
-
         if(!btnStart.disabled) btnStart.innerText = t.btnStart;
-
         document.getElementById('stopBtn').innerText = t.btnStop;
-
         if(!isPlaying) document.getElementById('targetDisplay').innerText = t.ready;
-
+        
+        // Dropdown Seçenek Çevirileri
+        const updateOptions = (id, dict) => {
+            const sel = document.getElementById(id);
+            for(let opt of sel.options) {
+                if(dict[opt.value]) opt.innerText = dict[opt.value];
+            }
+        };
+        
+        updateOptions('noteCount', t.counts);
+        updateOptions('playStyle', t.styles);
+        
         const opts = document.getElementById('scaleType').options;
-
         for(let opt of opts) {
-
             if(!opt.dataset.en) opt.dataset.en = opt.innerText;
-
             if(lang === 'tr' && opt.dataset.tr) opt.innerText = opt.dataset.tr;
-
             else opt.innerText = opt.dataset.en;
-
         }
-
         populateDropdowns(true); 
-
     }
-
-
 
     function populateDropdowns(preserveSelection = false) {
-
         const rootSel = document.getElementById('rootKey');
-
         const minSel = document.getElementById('minNote');
-
         const maxSel = document.getElementById('maxNote');
-
         const oldRoot = rootSel.value, oldMin = minSel.value, oldMax = maxSel.value;
-
         rootSel.innerHTML = ""; minSel.innerHTML = ""; maxSel.innerHTML = "";
-
         NOTE_NAMES_EN.forEach((n, i) => {
-
             const displayName = (currentLang === 'tr') ? NOTE_NAMES_TR[i] : n;
-
             rootSel.add(new Option(displayName, i));
-
         });
-
         allNotes.forEach(n => {
-
             const displayName = getDisplayNote(n.name);
-
             minSel.add(new Option(displayName, n.val));
-
             maxSel.add(new Option(displayName, n.val));
-
         });
-
         if(preserveSelection) {
-
             rootSel.value = oldRoot; minSel.value = oldMin; maxSel.value = oldMax;
-
         } else {
-
             minSel.value = allNotes.find(n => n.name === "C3").val;
-
             maxSel.value = allNotes.find(n => n.name === "C5").val;
-
         }
-
     }
-
-
 
     function init() {
-
         for(let oct=2; oct<=7; oct++){
-
             NOTE_NAMES_EN.forEach((n, i) => {
-
                 const name = n + oct;
-
                 const val = (oct * 12) + i;
-
                 allNotes.push({ name, val, baseIndex: i });
-
             });
-
         }
-
         populateDropdowns(false);
-
         renderPiano();
-
         initAudio();
-
     }
 
-
-
-    async function playNote(noteName, duration = 2.5) {
-
+    async function playNoteSequence(notes, style) {
         if (Tone.context.state !== 'running') await Tone.start();
-
         if(!sampler || !isAudioReady) return;
-
         
-
-        currentTargetNote = noteName; 
-
+        currentTargetNotes = notes;
+        matchedStatus = new Array(notes.length).fill(false); // Reset status
         
-
-        // BLIND SPOT INCREASED TO 1.2s for REVERB TAIL
-
+        updateTargetDisplay(); // Ekranda göster
+        
+        // Mikrofonu sustur (kendi sesini duymasın makine)
         ignoreMicInput = true;
-
         
-
-        sampler.triggerAttackRelease(noteName, duration);
-
-        const keyEl = document.getElementById(`key-${noteName}`);
-
-        if(keyEl) {
-
-            keyEl.classList.add('active');
-
-            setTimeout(() => keyEl.classList.remove('active'), 400);
-
+        const now = Tone.now();
+        
+        if (style === 'chord') {
+            // Hepsini aynı anda bas
+            notes.forEach(n => {
+                sampler.triggerAttackRelease(n, 3.0, now);
+                highlightKey(n);
+            });
+             setTimeout(() => { ignoreMicInput = false; }, 1500);
+        } else {
+            // Arpej (Sırayla)
+            notes.forEach((n, i) => {
+                sampler.triggerAttackRelease(n, 2.0, now + (i * 0.5));
+                setTimeout(() => highlightKey(n), i * 500);
+            });
+            // Arpej bitene kadar bekle
+            setTimeout(() => { ignoreMicInput = false; }, (notes.length * 500) + 500);
         }
-
-        
-
-        // Extended Wait
-
-        setTimeout(() => { ignoreMicInput = false; }, 300);
-
     }
-
-
+    
+    function highlightKey(noteName) {
+        const keyEl = document.getElementById(`key-${noteName}`);
+        if(keyEl) {
+            keyEl.classList.add('active');
+            setTimeout(() => keyEl.classList.remove('active'), 400);
+        }
+    }
 
     function renderPiano() {
-
         const board = document.getElementById('pianoBoard');
-
         const scrollContainer = document.getElementById('scrollContainer');
-
         board.innerHTML = ''; 
-
         const min = parseInt(document.getElementById('minNote').value);
-
         const max = parseInt(document.getElementById('maxNote').value);
-
         const root = parseInt(document.getElementById('rootKey').value);
-
         const scaleType = document.getElementById('scaleType').value;
-
         
-
         const SCALES = {
-
             chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
-
             major: [0,2,4,5,7,9,11],
-
             minor: [0,2,3,5,7,8,10],
-
             blues: [0,3,5,6,7,10],
-
             pent_major: [0,2,4,7,9]
-
         };
-
         const currentScaleIntervals = SCALES[scaleType];
-
         const startNoteObj = allNotes.find(n => n.val === min);
-
         const startVal = startNoteObj ? startNoteObj.val : 0;
-
         const rangeNotes = allNotes.filter(n => n.val >= min && n.val <= max);
-
         const WHITE_W = 42; const BLACK_W = 28;
-
         let whiteCount = 0; let whiteNotes = []; let blackNotes = [];
 
-
-
         rangeNotes.forEach(n => {
-
             if (n.name.includes('#')) blackNotes.push(n);
-
             else { n.wIndex = whiteCount++; whiteNotes.push(n); }
-
         });
-
         const totalWidth = whiteCount * WHITE_W;
-
         board.style.width = totalWidth + 'px';
 
-
-
         const createKey = (cls, note, left) => {
-
             const div = document.createElement('div');
-
             const interval = (note.baseIndex - root + 12) % 12;
-
             const isInScale = currentScaleIntervals.includes(interval);
-
             div.className = `key ${cls} ${isInScale ? 'in-scale' : ''}`;
-
             div.id = `key-${note.name}`;
-
             div.style.left = left + 'px';
-
             
-
             const dot = document.createElement('div');
-
             dot.className = 'scale-dot';
-
             div.appendChild(dot);
 
-
-
             const trigger = async (e) => {
-
                 e.preventDefault(); 
-
                 if(e.type === 'touchstart') e.stopPropagation(); 
-
                 if(Tone.context.state !== 'running') await Tone.start();
-
+                
+                // Tekil tıklamada 1 nota çalar, sistem karışmasın diye tekil moda alırız
                 if(sampler && isAudioReady) {
-
-                    sampler.triggerAttackRelease(note.name, 2.0);
-
-                    currentTargetNote = note.name;
-
-                    div.classList.add('active');
-
-                    setTimeout(() => div.classList.remove('active'), 200);
-
-                    
-
-                    const prefix = TRANSLATIONS[currentLang].target;
-
-                    document.getElementById('targetDisplay').innerText = prefix + getDisplayNote(note.name);
-
+                     playNoteSequence([note.name], 'chord');
                 }
-
             };
-
             div.addEventListener('mousedown', trigger);
-
             div.addEventListener('touchstart', trigger, {passive: false});
-
             
-
             const dist = note.val - startVal;
-
             if(dist >= 0 && dist < KEY_SEQUENCE.length && window.innerWidth > 600) {
-
                  const span = document.createElement('span');
-
                  span.className = 'key-label';
-
                  span.innerText = KEY_SEQUENCE[dist].toUpperCase();
-
                  div.appendChild(span);
-
             }
-
             return div;
-
         };
-
-
 
         whiteNotes.forEach(n => board.appendChild(createKey('white', n, n.wIndex * WHITE_W)));
-
         blackNotes.forEach(n => {
-
             const prevName = n.name.replace('#', '');
-
             const prevWhite = whiteNotes.find(wn => wn.name === prevName);
-
             if(prevWhite) {
-
                 const pos = (prevWhite.wIndex * WHITE_W) + (WHITE_W) - (BLACK_W / 2);
-
                 board.appendChild(createKey('black', n, pos));
-
             }
-
         });
-
-
 
         setTimeout(() => {
-
             const centerPos = (totalWidth / 2) - (scrollContainer.clientWidth / 2);
-
             scrollContainer.scrollLeft = Math.max(0, centerPos);
-
         }, 100);
-
     }
-
-
 
     function playRandom() {
-
         if (!isPlaying) return;
-
         const min = parseInt(document.getElementById('minNote').value);
-
         const max = parseInt(document.getElementById('maxNote').value);
-
         const root = parseInt(document.getElementById('rootKey').value);
-
         const scale = document.getElementById('scaleType').value;
-
         const intervalVal = parseFloat(document.getElementById('interval').value);
-
         
-
+        // Yeni Parametreler
+        const noteCount = parseInt(document.getElementById('noteCount').value);
+        const playStyle = document.getElementById('playStyle').value;
+        
         const SCALES = {
-
             chromatic: [0,1,2,3,4,5,6,7,8,9,10,11],
-
             major: [0,2,4,5,7,9,11],
-
             minor: [0,2,3,5,7,8,10],
-
             blues: [0,3,5,6,7,10],
-
             pent_major: [0,2,4,7,9]
-
         };
 
-
-
+        // 1. Geçerli tüm notaları bul
         const validNotes = allNotes.filter(n => {
-
             if(n.val < min || n.val > max) return false;
-
             const interval = (n.baseIndex - root + 12) % 12;
-
             return SCALES[scale].includes(interval);
-
         });
 
-
-
         if(validNotes.length > 0) {
-
+            // Başlangıç notası seç (Kök ağırlıklı)
             let weightedPool = [...validNotes];
-
             const rootNotes = validNotes.filter(n => n.baseIndex === root);
-
             for(let i=0; i<3; i++) weightedPool.push(...rootNotes);
 
-
-
-            const note = weightedPool[Math.floor(Math.random() * weightedPool.length)];
-
-            let noteDuration = intervalVal - 1;
-
-            if(noteDuration < 0.1) noteDuration = 0.1;
-
+            const startNote = weightedPool[Math.floor(Math.random() * weightedPool.length)];
+            const startIndex = validNotes.indexOf(startNote);
             
-
-            playNote(note.name, noteDuration);
-
-            const prefix = TRANSLATIONS[currentLang].target;
-
-            document.getElementById('targetDisplay').innerText = prefix + getDisplayNote(note.name);
-
+            // 2. Akor/Aralık Oluştur (Diatonic - Gam içinde kalarak)
+            let chordNotes = [startNote.name];
             
-
+            if(noteCount > 1) {
+                // Gam içindeki sıraya göre 2şer atlayarak notaları al (3lü aralıklar)
+                // Örnek: C Major -> C(1), E(3), G(5)
+                for(let i=1; i < noteCount; i++) {
+                    // Gam içinde 2 ileri git (Diatonic Thirds)
+                    let nextIndex = startIndex + (i * 2); 
+                    
+                    // Eğer gamın sonuna geldiyse başa dön (oktav sorunu basitçe halletmek için dizi içinde dön)
+                    if(nextIndex >= validNotes.length) nextIndex = nextIndex % validNotes.length;
+                    
+                    // Nota çok inceye gittiyse bir alt oktavdan al (opsiyonel, şimdilik düz alıyoruz)
+                    if(validNotes[nextIndex]) {
+                         chordNotes.push(validNotes[nextIndex].name);
+                    }
+                }
+            }
+            
+            // NOTLARI SIRALA (Kalından İnceye)
+            chordNotes.sort((a,b) => {
+                const valA = allNotes.find(n => n.name === a).val;
+                const valB = allNotes.find(n => n.name === b).val;
+                return valA - valB;
+            });
+            
+            // ÇAL VE UI GÜNCELLE
+            playNoteSequence(chordNotes, playStyle);
+            
+            // Reset UI States
             document.getElementById('tunerDisplay').className = "tuner-display listening";
-
             document.getElementById('controlDeck').className = "controls-container";
-
         }
-
-
 
         const intervalMs = intervalVal * 1000;
-
         timerId = setTimeout(playRandom, intervalMs);
-
     }
-
-
 
     async function startApp() {
-
         if (Tone.context.state !== 'running') await Tone.start();
-
         isPlaying = true;
-
         if(!isMicActive) await toggleMic();
-
         document.getElementById('startBtn').style.display = 'none';
-
         document.getElementById('stopBtn').style.display = 'block';
-
         playRandom();
-
     }
-
-
 
     function stopApp() {
-
         isPlaying = false;
-
         clearTimeout(timerId);
-
         if(sampler) sampler.releaseAll();
-
         document.getElementById('startBtn').style.display = 'block';
-
         document.getElementById('stopBtn').style.display = 'none';
-
         document.getElementById('targetDisplay').innerText = TRANSLATIONS[currentLang].ready;
-
         document.getElementById('controlDeck').className = "controls-container";
-
         ignoreMicInput = false;
-
+        currentTargetNotes = [];
     }
-
     
-
     // --- KEYBOARD LISTENER ---
-
     window.addEventListener('keydown', async (e) => {
-
         if(e.repeat) return;
-
         const key = e.key.toLowerCase();
-
         const keyIndex = KEY_SEQUENCE.indexOf(key);
-
         if(keyIndex === -1) return;
 
-
-
         const minVal = parseInt(document.getElementById('minNote').value);
-
         const targetVal = minVal + keyIndex;
-
         
-
         const noteObj = allNotes.find(n => n.val === targetVal);
-
         if(noteObj) {
-
-            if(Tone.context.state !== 'running') await Tone.start();
-
-            
-
-            const el = document.getElementById(`key-${noteObj.name}`);
-
-            if(el) el.classList.add('active');
-
-            
-
-            if(sampler && isAudioReady) {
-
-                sampler.triggerAttack(noteObj.name);
-
-                currentTargetNote = noteObj.name;
-
-                document.getElementById('targetDisplay').innerText = TRANSLATIONS[currentLang].target + getDisplayNote(noteObj.name);
-
-            }
-
+            playNoteSequence([noteObj.name], 'chord');
         }
-
     });
-
-
 
     window.addEventListener('keyup', (e) => {
-
-        const key = e.key.toLowerCase();
-
-        const keyIndex = KEY_SEQUENCE.indexOf(key);
-
-        if(keyIndex === -1) return;
-
-        const minVal = parseInt(document.getElementById('minNote').value);
-
-        const targetVal = minVal + keyIndex;
-
-        const noteObj = allNotes.find(n => n.val === targetVal);
-
-        
-
-        if(noteObj) {
-
-            const el = document.getElementById(`key-${noteObj.name}`);
-
-            if(el) el.classList.remove('active');
-
-            if(sampler && isAudioReady) sampler.triggerRelease(noteObj.name);
-
-        }
-
+        // Simple release logic handled by playNoteSequence timeout mostly
+        // but for manual play let's keep it simple
     });
 
-
-
     document.body.addEventListener('touchstart', async () => {
-
         if(Tone.context.state !== 'running') await Tone.start();
-
     }, { once: true, passive: true });
 
-
-
     init();
-
 </script>
-
 </body>
-
 </html>
-
