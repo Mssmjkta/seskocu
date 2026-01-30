@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vocal Coach Pro (Harmony)</title>
+    <title>Vocal Coach Pro (Live Feedback)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         /* --- 1. LOGICAL COLOR SYSTEM (HSL) --- */
@@ -11,15 +11,16 @@
             --hue-brand: 273;
             --hue-neutral: 240; 
             
-            --c-exact-hex: #4bc5da; /* Turkuaz */
-            --c-octave-hex: #e79e51;
+            /* İstenilen Renkler */
+            --c-exact-hex: #4bc5da; /* Turkuaz (Tam isabet) */
+            --c-octave-hex: #e79e51; /* Turuncu (Oktav) */
+            
+            /* Mor Tonları */
+            --brand-core: #29004a; /* Kullanıcının istediği Koyu Mor */
+            --brand-vivid: hsl(var(--hue-brand), 90%, 55%);
 
             /* Light Mode Levels */
             --l-bg: 96%; --l-surface: 100%; --l-input: 94%;
-            
-            --brand-core: hsl(var(--hue-brand), 80%, 20%);
-            --brand-vivid: hsl(var(--hue-brand), 90%, 55%); /* Mor */
-            --brand-dim:   hsl(var(--hue-brand), 60%, 10%);
         }
 
         [data-theme="dark"] {
@@ -83,30 +84,32 @@
             border-radius: 24px; padding: clamp(1.5rem, 4vw, 2.5rem);
             display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem;
             box-shadow: var(--shadow-surface); position: relative; overflow: hidden;
-            transition: border-color 0.4s, box-shadow 0.4s;
+            transition: border-color 0.2s, box-shadow 0.2s; /* Hızlı geçiş için süreyi kısalttım */
         }
         
+        /* EXACT MATCH (TURKUAZ) - Öncelik 1 */
         .controls-container.match-exact {
-            border-top-color: var(--c-exact-hex);
-            box-shadow: 0 0 40px rgba(75, 197, 218, 0.25);
+            border-top-color: var(--c-exact-hex) !important;
+            box-shadow: 0 0 40px rgba(75, 197, 218, 0.4) !important;
         }
 
+        /* OCTAVE MATCH (TURUNCU) - Öncelik 2 */
         .controls-container.match-octave {
-            border-top-color: var(--c-octave-hex);
-            box-shadow: 0 0 40px rgba(231, 158, 81, 0.25);
+            border-top-color: var(--c-octave-hex) !important;
+            box-shadow: 0 0 40px rgba(231, 158, 81, 0.4) !important;
         }
         
-        /* FULL COMPLETE STATE (PURPLE) */
+        /* COMPLETE STATE (MOR) - Öncelik 3 (Background) */
         .controls-container.match-complete {
             border-top-color: var(--brand-vivid);
-            box-shadow: 0 0 60px var(--brand-vivid); /* Güçlü Mor Glow */
-            animation: pulsePurple 2s infinite;
+            box-shadow: 0 0 50px var(--brand-core); 
+            animation: pulsePurple 3s infinite;
         }
 
         @keyframes pulsePurple {
-            0% { box-shadow: 0 0 40px var(--brand-vivid); }
-            50% { box-shadow: 0 0 70px var(--brand-vivid); }
-            100% { box-shadow: 0 0 40px var(--brand-vivid); }
+            0% { box-shadow: 0 0 30px var(--brand-core); }
+            50% { box-shadow: 0 0 60px var(--brand-vivid); }
+            100% { box-shadow: 0 0 30px var(--brand-core); }
         }
 
         /* --- INPUTS --- */
@@ -144,10 +147,10 @@
         }
         .btn-start {
             background: linear-gradient(135deg, var(--brand-vivid) 0%, var(--brand-core) 100%); color: #fff;
-            box-shadow: inset 0 1px 0 hsla(0,0%,100%,0.3), 0 6px 0 var(--brand-dim), 0 12px 20px hsla(0,0%,0%,0.3);
+            box-shadow: inset 0 1px 0 hsla(0,0%,100%,0.3), 0 6px 0 var(--brand-core), 0 12px 20px hsla(0,0%,0%,0.3);
             text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
-        .btn-start:active { transform: translateY(4px); box-shadow: inset 0 2px 4px hsla(0,0%,0%,0.3), 0 2px 0 var(--brand-dim); }
+        .btn-start:active { transform: translateY(4px); box-shadow: inset 0 2px 4px hsla(0,0%,0%,0.3), 0 2px 0 var(--brand-core); }
         .btn-stop {
             display: none; background: linear-gradient(135deg, #ff5e57, #ff3f34); color: white;
             box-shadow: inset 0 1px 0 hsla(0,0%,100%,0.3), 0 6px 0 #b33939, 0 12px 20px hsla(0,0%,0%,0.3);
@@ -355,15 +358,13 @@
 
     let currentLang = 'en', sampler, reverb, mic, micGain, filterHighPass, analyser, isPlaying = false, timerId = null, allNotes = [], isAudioReady = false;
     
-    // YENİ DEĞİŞKENLER: ÇOKLU NOTA SİSTEMİ İÇİN
-    let currentTargetNotes = []; // ['C4', 'E4', 'G4'] gibi
-    let matchedStatus = [];      // [true, false, false] gibi
+    let currentTargetNotes = []; 
+    let matchedStatus = [];      
     
     let isMicActive = false;
     let detectionId = null;
     let ignoreMicInput = false;
     
-    // Constant Gate for Android (Hidden from UI but active)
     const NOISE_GATE_THRESHOLD = 0.02; 
 
     function autoCorrelate(buf, sampleRate) {
@@ -372,7 +373,6 @@
         for (let i = 0; i < SIZE; i++) { let val = buf[i]; rms += val * val; }
         rms = Math.sqrt(rms / SIZE);
         
-        // Android Fix: Ignore low volume rumble/echo
         if (rms < NOISE_GATE_THRESHOLD) return -1; 
 
         let r1 = 0, r2 = SIZE - 1, thres = 0.2;
@@ -403,6 +403,8 @@
         return notes[midi % 12] + octave;
     }
 
+    function getNoteChroma(noteName) { return noteName.replace(/[0-9-]/g, ''); }
+
     function updatePitch() {
         if (!isMicActive || !analyser) return;
 
@@ -422,67 +424,84 @@
         const tunerEl = document.getElementById('tunerDisplay');
         const deck = document.getElementById('controlDeck');
 
-        if (freq === -1) {
-            tunerEl.innerText = isMicActive ? "..." : "--";
-            tunerEl.className = "tuner-display listening";
-            // Eğer hepsi tamamlanmadıysa nötr yap, tamamlandıysa dokunma (mor kalacak)
-            const allComplete = matchedStatus.length > 0 && matchedStatus.every(s => s === true);
-            if(!allComplete) deck.className = "controls-container";
+        // Durum Kontrolü
+        const isSinging = (freq !== -1);
+        const allComplete = matchedStatus.length > 0 && matchedStatus.every(s => s === true);
+
+        if (!isSinging) {
+            // --- SESSİZLİK DURUMU ---
+            if(allComplete) {
+                // Her şey tamamsa ve susuyorsa: "Complete" yaz ve Mor yap.
+                tunerEl.innerText = "COMPLETE!";
+                deck.className = "controls-container match-complete";
+                tunerEl.className = "tuner-display match-complete"; // Uyumlu görünmesi için
+            } else {
+                // Henüz bitmemiş ve susuyor
+                tunerEl.innerText = "--";
+                tunerEl.className = "tuner-display listening";
+                deck.className = "controls-container";
+            }
         } else {
+            // --- ŞARKI SÖYLEME DURUMU ---
             const midi = frequencyToNote(freq);
             const sungNote = getNoteNameFromMidi(midi);
+            const sungChroma = getNoteChroma(sungNote);
+            
+            // Default: Notayı ekrana yaz
             tunerEl.innerText = getDisplayNote(sungNote);
 
-            // ÇOKLU NOTA KONTROLÜ
             if(currentTargetNotes.length > 0) {
-                // Söylenen notanın hedef listesinde olup olmadığına bak
-                const matchIndex = currentTargetNotes.indexOf(sungNote);
+                const exactMatchIndex = currentTargetNotes.indexOf(sungNote);
                 
-                if (matchIndex > -1) {
-                    // Doğru nota!
-                    if (!matchedStatus[matchIndex]) {
-                        // Yeni bulundu
-                        matchedStatus[matchIndex] = true;
-                        updateTargetDisplay(); // UI'ı güncelle (Yeşil yap)
+                // 1. EXACT MATCH KONTROLÜ (TURKUAZ)
+                if (exactMatchIndex > -1) {
+                    if (!matchedStatus[exactMatchIndex]) {
+                        matchedStatus[exactMatchIndex] = true; // Yeni buldu
+                        updateTargetDisplay();
                         
-                        // ANLIK GERİ BİLDİRİM (TURKUAZ)
-                        tunerEl.className = "tuner-display match-exact";
-                        deck.className = "controls-container match-exact";
-                        
-                        // Piyano tuşunu yak
                         const keyEl = document.getElementById(`key-${sungNote}`);
                         if(keyEl) {
                             keyEl.classList.add('active');
                             setTimeout(() => keyEl.classList.remove('active'), 500);
                         }
-                    } else {
-                         // Zaten bulunmuştu, yine de geri bildirim ver
-                         tunerEl.className = "tuner-display match-exact";
                     }
-                } else {
-                    // Yanlış nota
-                    const allComplete = matchedStatus.every(s => s === true);
-                    if(!allComplete) {
-                         tunerEl.className = "tuner-display listening";
-                         deck.className = "controls-container";
+                    // Ekrana geri bildirim (Mor olsa bile Turkuaz baskın)
+                    tunerEl.className = "tuner-display match-exact";
+                    deck.className = "controls-container match-exact";
+                    tunerEl.innerText = "EXACT: " + getDisplayNote(sungNote);
+                    
+                } 
+                // 2. OKTAV MATCH KONTROLÜ (TURUNCU)
+                else {
+                    // Hedef listedeki herhangi bir notanın oktavı mı?
+                    const isOctave = currentTargetNotes.some(target => getNoteChroma(target) === sungChroma);
+                    
+                    if (isOctave) {
+                        tunerEl.className = "tuner-display match-octave";
+                        deck.className = "controls-container match-octave";
+                        tunerEl.innerText = "OCTAVE: " + getDisplayNote(sungNote);
+                    } 
+                    // 3. HİÇBİRİ DEĞİLSE
+                    else {
+                        if(allComplete) {
+                            // Bitmiş ama yanlış/alakasız nota söylüyor -> Arka plan Mor kalsın, notayı göster
+                            tunerEl.className = "tuner-display listening"; // Nötr renk
+                            deck.className = "controls-container match-complete"; // Arka plan hala mor
+                        } else {
+                            // Bitmemiş ve yanlış nota -> Nötr
+                            tunerEl.className = "tuner-display listening";
+                            deck.className = "controls-container";
+                        }
                     }
-                }
-
-                // HEPSİ TAMAMLANDI MI?
-                if (matchedStatus.every(s => s === true)) {
-                    // MOR MODU AÇ (Brand Vivid)
-                    deck.className = "controls-container match-complete";
-                    tunerEl.innerText = "COMPLETE!";
                 }
             }
         }
         detectionId = requestAnimationFrame(updatePitch);
     }
 
-    // Hedef notaları ekrana yazdıran fonksiyon (Bulunanları işaretle)
     function updateTargetDisplay() {
         const container = document.getElementById('targetDisplay');
-        container.innerHTML = ''; // Temizle
+        container.innerHTML = ''; 
         
         if (currentTargetNotes.length === 0) {
             container.innerText = TRANSLATIONS[currentLang].ready;
@@ -605,8 +624,6 @@
         document.getElementById('lbl_end').innerText = t.end;
         document.getElementById('lbl_interval').innerText = t.interval;
         document.getElementById('lbl_gain').innerText = t.gain;
-        
-        // Yeni Label Çevirileri
         document.getElementById('lbl_count').innerText = t.count;
         document.getElementById('lbl_style').innerText = t.style;
         
@@ -615,7 +632,6 @@
         document.getElementById('stopBtn').innerText = t.btnStop;
         if(!isPlaying) document.getElementById('targetDisplay').innerText = t.ready;
         
-        // Dropdown Seçenek Çevirileri
         const updateOptions = (id, dict) => {
             const sel = document.getElementById(id);
             for(let opt of sel.options) {
@@ -676,29 +692,25 @@
         if(!sampler || !isAudioReady) return;
         
         currentTargetNotes = notes;
-        matchedStatus = new Array(notes.length).fill(false); // Reset status
+        matchedStatus = new Array(notes.length).fill(false); 
         
-        updateTargetDisplay(); // Ekranda göster
+        updateTargetDisplay(); 
         
-        // Mikrofonu sustur (kendi sesini duymasın makine)
         ignoreMicInput = true;
         
         const now = Tone.now();
         
         if (style === 'chord') {
-            // Hepsini aynı anda bas
             notes.forEach(n => {
                 sampler.triggerAttackRelease(n, 3.0, now);
                 highlightKey(n);
             });
              setTimeout(() => { ignoreMicInput = false; }, 1500);
         } else {
-            // Arpej (Sırayla)
             notes.forEach((n, i) => {
                 sampler.triggerAttackRelease(n, 2.0, now + (i * 0.5));
                 setTimeout(() => highlightKey(n), i * 500);
             });
-            // Arpej bitene kadar bekle
             setTimeout(() => { ignoreMicInput = false; }, (notes.length * 500) + 500);
         }
     }
@@ -757,8 +769,6 @@
                 e.preventDefault(); 
                 if(e.type === 'touchstart') e.stopPropagation(); 
                 if(Tone.context.state !== 'running') await Tone.start();
-                
-                // Tekil tıklamada 1 nota çalar, sistem karışmasın diye tekil moda alırız
                 if(sampler && isAudioReady) {
                      playNoteSequence([note.name], 'chord');
                 }
@@ -800,7 +810,6 @@
         const scale = document.getElementById('scaleType').value;
         const intervalVal = parseFloat(document.getElementById('interval').value);
         
-        // Yeni Parametreler
         const noteCount = parseInt(document.getElementById('noteCount').value);
         const playStyle = document.getElementById('playStyle').value;
         
@@ -812,7 +821,6 @@
             pent_major: [0,2,4,7,9]
         };
 
-        // 1. Geçerli tüm notaları bul
         const validNotes = allNotes.filter(n => {
             if(n.val < min || n.val > max) return false;
             const interval = (n.baseIndex - root + 12) % 12;
@@ -820,7 +828,6 @@
         });
 
         if(validNotes.length > 0) {
-            // Başlangıç notası seç (Kök ağırlıklı)
             let weightedPool = [...validNotes];
             const rootNotes = validNotes.filter(n => n.baseIndex === root);
             for(let i=0; i<3; i++) weightedPool.push(...rootNotes);
@@ -828,37 +835,26 @@
             const startNote = weightedPool[Math.floor(Math.random() * weightedPool.length)];
             const startIndex = validNotes.indexOf(startNote);
             
-            // 2. Akor/Aralık Oluştur (Diatonic - Gam içinde kalarak)
             let chordNotes = [startNote.name];
             
             if(noteCount > 1) {
-                // Gam içindeki sıraya göre 2şer atlayarak notaları al (3lü aralıklar)
-                // Örnek: C Major -> C(1), E(3), G(5)
                 for(let i=1; i < noteCount; i++) {
-                    // Gam içinde 2 ileri git (Diatonic Thirds)
                     let nextIndex = startIndex + (i * 2); 
-                    
-                    // Eğer gamın sonuna geldiyse başa dön (oktav sorunu basitçe halletmek için dizi içinde dön)
                     if(nextIndex >= validNotes.length) nextIndex = nextIndex % validNotes.length;
-                    
-                    // Nota çok inceye gittiyse bir alt oktavdan al (opsiyonel, şimdilik düz alıyoruz)
                     if(validNotes[nextIndex]) {
                          chordNotes.push(validNotes[nextIndex].name);
                     }
                 }
             }
             
-            // NOTLARI SIRALA (Kalından İnceye)
             chordNotes.sort((a,b) => {
                 const valA = allNotes.find(n => n.name === a).val;
                 const valB = allNotes.find(n => n.name === b).val;
                 return valA - valB;
             });
             
-            // ÇAL VE UI GÜNCELLE
             playNoteSequence(chordNotes, playStyle);
             
-            // Reset UI States
             document.getElementById('tunerDisplay').className = "tuner-display listening";
             document.getElementById('controlDeck').className = "controls-container";
         }
@@ -888,7 +884,6 @@
         currentTargetNotes = [];
     }
     
-    // --- KEYBOARD LISTENER ---
     window.addEventListener('keydown', async (e) => {
         if(e.repeat) return;
         const key = e.key.toLowerCase();
@@ -902,11 +897,6 @@
         if(noteObj) {
             playNoteSequence([noteObj.name], 'chord');
         }
-    });
-
-    window.addEventListener('keyup', (e) => {
-        // Simple release logic handled by playNoteSequence timeout mostly
-        // but for manual play let's keep it simple
     });
 
     document.body.addEventListener('touchstart', async () => {
