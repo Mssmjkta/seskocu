@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="tr" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -13,7 +13,7 @@
             
             /* İstenilen Renkler */
             --c-exact-hex: #4bc5da; /* Turkuaz (Tam isabet) */
-            --c-octave-hex: #e79e51; /* Turuncu (Oktav) */
+            --c-octave-hex: #e79e51; /* Turuncu (Oktav/Hata) */
             
             /* Mor Tonları */
             --brand-core: #29004a; /* Kullanıcının istediği Koyu Mor */
@@ -65,7 +65,7 @@
         /* --- HEADER --- */
         .header-bar {
             width: 100%; max-width: 680px; display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 1.5rem; padding: 0 0.5rem;
+            margin-bottom: 1rem; padding: 0 0.5rem;
         }
 
         h1 {
@@ -77,6 +77,20 @@
             border-radius: 2px; margin-top: 4px; box-shadow: 0 0 10px var(--brand-vivid);
         }
 
+        /* --- TABS --- */
+        .tab-nav {
+            width: 100%; max-width: 680px; display: flex; gap: 10px; margin-bottom: 1rem;
+            background: var(--c-input); padding: 5px; border-radius: 16px;
+        }
+        .tab-btn {
+            flex: 1; padding: 12px; border: none; background: transparent; color: var(--c-text-muted);
+            font-weight: 700; cursor: pointer; border-radius: 12px; transition: 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--c-surface); color: var(--c-text-main);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
         /* --- CONTROL DECK --- */
         .controls-container {
             width: 100%; max-width: 680px; background: var(--c-surface);
@@ -84,22 +98,25 @@
             border-radius: 24px; padding: clamp(1.5rem, 4vw, 2.5rem);
             display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 2rem;
             box-shadow: var(--shadow-surface); position: relative; overflow: hidden;
-            transition: border-color 0.2s, box-shadow 0.2s; /* Hızlı geçiş için süreyi kısalttım */
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
         
-        /* EXACT MATCH (TURKUAZ) - Öncelik 1 */
+        .mode-section { display: none; flex-direction: column; gap: 1.5rem; }
+        .mode-section.active { display: flex; }
+
+        /* EXACT MATCH (TURKUAZ) */
         .controls-container.match-exact {
             border-top-color: var(--c-exact-hex) !important;
             box-shadow: 0 0 40px rgba(75, 197, 218, 0.4) !important;
         }
 
-        /* OCTAVE MATCH (TURUNCU) - Öncelik 2 */
+        /* OCTAVE MATCH / ERROR (TURUNCU) */
         .controls-container.match-octave {
             border-top-color: var(--c-octave-hex) !important;
             box-shadow: 0 0 40px rgba(231, 158, 81, 0.4) !important;
         }
         
-        /* COMPLETE STATE (MOR) - Öncelik 3 (Background) */
+        /* COMPLETE / QUIZ CORRECT (MOR) */
         .controls-container.match-complete {
             border-top-color: var(--brand-vivid);
             box-shadow: 0 0 50px var(--brand-core); 
@@ -125,6 +142,45 @@
             font-size: 0.95rem; font-weight: 600; appearance: none; outline: none; transition: all 0.2s;
         }
         select:focus, input:focus { box-shadow: inset 0 2px 4px hsla(0,0%,0%,0.3), 0 0 0 2px var(--brand-vivid); }
+
+        /* CHECKBOX GRID FOR INTERVALS */
+        .checkbox-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px;
+        }
+        .chk-btn {
+            position: relative;
+        }
+        .chk-btn input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+        .chk-label {
+            display: block; background: var(--c-input); padding: 10px 5px; text-align: center;
+            border-radius: 10px; font-size: 0.75rem; font-weight: 700; color: var(--c-text-muted);
+            cursor: pointer; border: 1px solid transparent; transition: 0.2s;
+        }
+        .chk-btn input:checked ~ .chk-label {
+            background: var(--brand-core); color: #fff; border-color: var(--brand-vivid);
+        }
+
+        /* CUSTOM TOGGLE FOR QUIZ MODE */
+        .toggle-row {
+            display: flex; align-items: center; gap: 10px; background: var(--c-input);
+            padding: 10px; border-radius: 12px; cursor: pointer; user-select: none;
+        }
+        .toggle-row input { width: 20px; height: 20px; accent-color: var(--brand-vivid); cursor: pointer; box-shadow: none; }
+        .toggle-row label { cursor: pointer; margin: 0; color: var(--c-text-main); font-size: 0.9rem; text-transform: none; letter-spacing: 0; }
+
+        /* QUIZ BUTTONS */
+        .quiz-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; display: none; }
+        .quiz-options.visible { display: grid; }
+        
+        .quiz-btn {
+            background: var(--c-input); border: none; padding: 15px 5px; border-radius: 12px;
+            color: var(--c-text-main); font-weight: 800; font-size: 1rem; cursor: pointer;
+            transition: 0.2s;
+        }
+        .quiz-btn:hover { background: hsla(0,0%,100%,0.1); }
+        .quiz-btn.correct { background: var(--c-exact-hex) !important; color: #000 !important; transform: scale(1.05); box-shadow: 0 0 15px var(--c-exact-hex); }
+        .quiz-btn.wrong { background: var(--c-octave-hex) !important; color: #000 !important; opacity: 0.6; }
+
 
         /* Range Slider */
         input[type="range"] {
@@ -209,7 +265,7 @@
         .status-area { text-align: center; margin-top: 15px; }
         .target-note { 
             color: var(--c-text-muted); font-size: 0.9rem; font-weight: 500; margin-bottom: 5px; 
-            display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
+            display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; min-height: 24px;
         }
         
         .note-badge {
@@ -229,7 +285,9 @@
         .tuner-display.listening { color: var(--c-text-main); border-color: rgba(255,255,255,0.2); }
         .tuner-display.match-exact { background: var(--c-exact-hex); color: #000; box-shadow: 0 0 20px rgba(75, 197, 218, 0.4); transform: scale(1.05); }
         .tuner-display.match-octave { background: var(--c-octave-hex); color: #000; box-shadow: 0 0 20px rgba(231, 158, 81, 0.4); transform: scale(1.05); }
+        .tuner-display.match-complete { background: var(--brand-vivid); color: #fff; box-shadow: 0 0 20px var(--brand-core); }
         .tuner-display.blocked { opacity: 0.5; font-size: 0.8rem; }
+        .tuner-display.hidden-mode { background: #000; border: 1px solid #333; color: #555; letter-spacing: 3px; }
 
         .mic-icon-svg { width: 16px; height: 16px; fill: currentColor; }
         .loading-overlay { position: fixed; inset: 0; background: var(--c-bg); display: flex; justify-content: center; align-items: center; z-index: 999; flex-direction: column; gap: 15px; color: var(--brand-vivid);}
@@ -257,60 +315,91 @@
         </button>
         <button class="icon-btn" onclick="toggleTheme()" id="themeIcon">☀️</button>
         <div class="lang-group">
-            <button class="lang-btn active" onclick="setLang('en')">EN</button>
-            <button class="lang-btn" onclick="setLang('tr')">TR</button>
+            <button class="lang-btn" onclick="setLang('en')">EN</button>
+            <button class="lang-btn active" onclick="setLang('tr')">TR</button>
         </div>
     </div>
 </div>
 
+<div class="tab-nav">
+    <button class="tab-btn active" id="tabFree" onclick="switchTab('free')">Free Mode</button>
+    <button class="tab-btn" id="tabQuiz" onclick="switchTab('quiz')">Interval Quiz</button>
+</div>
+
 <div class="controls-container" id="controlDeck">
-    <div class="grid-row">
-        <div class="input-group"><label id="lbl_key">Key Center</label><select id="rootKey" onchange="renderPiano()"></select></div>
-        <div class="input-group"><label id="lbl_scale">Scale Mode</label>
-            <select id="scaleType" onchange="renderPiano()">
-                <option value="chromatic">Chromatic (All)</option>
-                <option value="major" selected>Major</option>
-                <option value="minor">Natural Minor</option>
-                <option value="blues">Blues</option>
-                <option value="pent_major">Pentatonic Major</option>
-            </select>
+    
+    <div id="mode-free" class="mode-section active">
+        <div class="grid-row">
+            <div class="input-group"><label id="lbl_key">Key Center</label><select id="rootKey" onchange="renderPiano()"></select></div>
+            <div class="input-group"><label id="lbl_scale">Scale Mode</label>
+                <select id="scaleType" onchange="renderPiano()">
+                    <option value="chromatic">Chromatic (All)</option>
+                    <option value="major" selected>Major</option>
+                    <option value="minor">Natural Minor</option>
+                    <option value="blues">Blues</option>
+                    <option value="pent_major">Pentatonic Major</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid-row">
+            <div class="input-group"><label id="lbl_start">Range Start</label><select id="minNote" onchange="renderPiano()"></select></div>
+            <div class="input-group"><label id="lbl_end">Range End</label><select id="maxNote" onchange="renderPiano()"></select></div>
+        </div>
+        
+        <div class="grid-row">
+            <div class="input-group">
+                <label id="lbl_count">Note Count</label>
+                <select id="noteCount">
+                    <option value="1">1 Note (Single)</option>
+                    <option value="2">2 Notes (Interval)</option>
+                    <option value="3">3 Notes (Triad)</option>
+                    <option value="4">4 Notes (7th/Add)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label id="lbl_style">Playback Style</label>
+                <select id="playStyle">
+                    <option value="arp" selected>Arpeggio (Low->High)</option>
+                    <option value="chord">Chord (Together)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid-row">
+            <div class="input-group">
+                <label id="lbl_interval">Interval Speed (Sec)</label>
+                <input type="number" id="interval" value="6.0" min="2.0" step="0.5">
+            </div>
         </div>
     </div>
 
-    <div class="grid-row">
-        <div class="input-group"><label id="lbl_start">Range Start</label><select id="minNote" onchange="renderPiano()"></select></div>
-        <div class="input-group"><label id="lbl_end">Range End</label><select id="maxNote" onchange="renderPiano()"></select></div>
-    </div>
-    
-    <div class="grid-row">
-        <div class="input-group">
-            <label id="lbl_count">Note Count</label>
-            <select id="noteCount">
-                <option value="1">1 Note (Single)</option>
-                <option value="2">2 Notes (Interval)</option>
-                <option value="3">3 Notes (Triad)</option>
-                <option value="4">4 Notes (7th/Add)</option>
-            </select>
+    <div id="mode-quiz" class="mode-section">
+        <div class="grid-row">
+            <div class="input-group"><label id="lbl_quiz_key">Root Note (All Octaves)</label><select id="quizRootKey"></select></div>
         </div>
+        
         <div class="input-group">
-            <label id="lbl_style">Playback Style</label>
-            <select id="playStyle">
-                <option value="arp" selected>Arpeggio (Low->High)</option>
-                <option value="chord">Chord (Together)</option>
-            </select>
+            <label id="lbl_intervals_sel">Select Intervals to Practice</label>
+            <div class="checkbox-grid" id="intervalChecks">
+                </div>
+        </div>
+
+        <div class="toggle-row">
+            <input type="checkbox" id="chkQuizTheory" checked>
+            <label id="lbl_quiz_theory" for="chkQuizTheory">Ask Note Name (Theory Test)</label>
+        </div>
+
+        <div id="quizOptions" class="quiz-options">
+            <button class="quiz-btn" onclick="handleQuizAnswer(this)">--</button>
+            <button class="quiz-btn" onclick="handleQuizAnswer(this)">--</button>
+            <button class="quiz-btn" onclick="handleQuizAnswer(this)">--</button>
         </div>
     </div>
 
-    <div class="grid-row">
+    <div class="grid-row" style="padding-top:10px; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto;">
         <div class="input-group">
-            <label id="lbl_interval">Interval Speed (Sec)</label>
-            <input type="number" id="interval" value="6.0" min="2.0" step="0.5">
-        </div>
-    </div>
-    
-    <div class="grid-row" style="padding-top:10px; border-top: 1px solid rgba(255,255,255,0.1);">
-        <div class="input-group">
-            <label id="lbl_gain">Mic Volume (iPhone Boost)</label>
+            <label id="lbl_gain">Mic Volume (Boost)</label>
             <input type="range" id="micGainSlider" min="1" max="10" step="0.5" value="3" oninput="updateMicGain(this.value)">
         </div>
     </div>
@@ -333,6 +422,21 @@
 </div>
 
 <script>
+    const INTERVAL_DATA = [
+        { semitones: 1, en: "Minor 2nd", tr: "Küçük 2'li" },
+        { semitones: 2, en: "Major 2nd", tr: "Büyük 2'li" },
+        { semitones: 3, en: "Minor 3rd", tr: "Küçük 3'lü" },
+        { semitones: 4, en: "Major 3rd", tr: "Büyük 3'lü" },
+        { semitones: 5, en: "Perfect 4th", tr: "Tam 4'lü" },
+        { semitones: 6, en: "Tritone", tr: "Artık 4'lü" },
+        { semitones: 7, en: "Perfect 5th", tr: "Tam 5'li" },
+        { semitones: 8, en: "Minor 6th", tr: "Küçük 6'lı" },
+        { semitones: 9, en: "Major 6th", tr: "Büyük 6'lı" },
+        { semitones: 10, en: "Minor 7th", tr: "Küçük 7'li" },
+        { semitones: 11, en: "Major 7th", tr: "Büyük 7'li" },
+        { semitones: 12, en: "Octave", tr: "Oktav" }
+    ];
+
     const TRANSLATIONS = {
         en: { 
             title: "Vocal Coach", key: "Key Center", scale: "Scale Mode", start: "Range Start", end: "Range End", 
@@ -340,7 +444,11 @@
             interval: "Interval (Sec)", gain: "Mic Volume (Boost)",
             btnStart: "Start Coaching", btnStop: "Stop", target: "Sing This: ", ready: "System Ready", mic: "Sing Now",
             styles: { arp: "Arpeggio", chord: "Chord" },
-            counts: { 1: "1 Note", 2: "2 Notes", 3: "3 Notes", 4: "4 Notes" }
+            counts: { 1: "1 Note", 2: "2 Notes", 3: "3 Notes", 4: "4 Notes" },
+            quizTab: "Interval Quiz", freeTab: "Free Mode",
+            quizKey: "Root Note (All Octaves)", selInt: "Select Intervals",
+            quizSingRoot: "Sing Root Note: ", quizSingInt: "Good! Now sing ", quizCorrect: "Correct! Now Identify:",
+            chkTheory: "Ask Note Name (Theory Test)", hold: "HOLD...", holdRoot: "HOLD ROOT!", great: "GREAT!"
         },
         tr: { 
             title: "Ses Koçu", key: "Kök Ses", scale: "Gam Modu", start: "Başlangıç", end: "Bitiş", 
@@ -348,7 +456,11 @@
             interval: "Aralık (sn)", gain: "Mikrofon Sesi (Boost)",
             btnStart: "Başlat", btnStop: "Durdur", target: "Bunları Söyle: ", ready: "Sistem Hazır", mic: "Söyle",
             styles: { arp: "Arpej (Sıralı)", chord: "Akor (Aynı Anda)" },
-            counts: { 1: "1 Nota (Tek)", 2: "2 Nota (Aralık)", 3: "3 Nota (Akor)", 4: "4 Nota (7'li)" }
+            counts: { 1: "1 Nota (Tek)", 2: "2 Nota (Aralık)", 3: "3 Nota (Akor)", 4: "4 Nota (7'li)" },
+            quizTab: "Aralık Çalışması", freeTab: "Serbest Mod",
+            quizKey: "Kök Nota (Tüm Oktavlar)", selInt: "Çalışılacak Aralıklar",
+            quizSingRoot: "Kök Sesi Söyle: ", quizSingInt: "Güzel! Şimdi bunu söyle: ", quizCorrect: "Doğru! Şimdi Bil:",
+            chkTheory: "Nota İsmini Sor (Teori Testi)", hold: "TUT...", holdRoot: "TUT...", great: "HARİKA!"
         }
     };
 
@@ -356,11 +468,25 @@
     const NOTE_NAMES_TR = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
     const KEY_SEQUENCE = ['a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k', 'o', 'l', 'p', ';'];
 
-    let currentLang = 'en', sampler, reverb, mic, micGain, filterHighPass, analyser, isPlaying = false, timerId = null, allNotes = [], isAudioReady = false;
+    // Default Language TR
+    let currentLang = 'tr', sampler, reverb, mic, micGain, filterHighPass, analyser, isPlaying = false, timerId = null, allNotes = [], isAudioReady = false;
     
+    // Core State
+    let currentMode = 'free'; // 'free' or 'quiz'
     let currentTargetNotes = []; 
-    let matchedStatus = [];      
+    let matchedStatus = [];       
     
+    // Quiz State
+    let quizTargetNoteObj = null; 
+    let quizRootNoteObj = null;   
+    let quizIntervalName = "";
+    let quizState = 'idle'; 
+    
+    // Hold Timer Logic
+    let holdStartTime = 0;
+    let lastDetectedNote = null;
+    const HOLD_DURATION = 1000; // 1 second hold needed
+
     let isMicActive = false;
     let detectionId = null;
     let ignoreMicInput = false;
@@ -410,8 +536,7 @@
 
         if(ignoreMicInput) {
             const tunerEl = document.getElementById('tunerDisplay');
-            tunerEl.innerText = "(Playing...)";
-            tunerEl.className = "tuner-display blocked";
+            tunerEl.innerText = "(...)";
             detectionId = requestAnimationFrame(updatePitch);
             return;
         }
@@ -424,39 +549,147 @@
         const tunerEl = document.getElementById('tunerDisplay');
         const deck = document.getElementById('controlDeck');
 
-        // Durum Kontrolü
         const isSinging = (freq !== -1);
+        
+        // --- QUIZ MODE LOGIC ---
+        if (currentMode === 'quiz' && isPlaying) {
+            if (isSinging) {
+                const midi = frequencyToNote(freq);
+                const sungNote = getNoteNameFromMidi(midi);
+                
+                // --- PHASE 1: SING ROOT (Requires Hold) ---
+                if (quizState === 'waiting_root') {
+                    if (sungNote === quizRootNoteObj.name) {
+                        
+                        // Hold Logic
+                        if(lastDetectedNote !== sungNote) {
+                            holdStartTime = Date.now();
+                            lastDetectedNote = sungNote;
+                        }
+
+                        const holdTime = Date.now() - holdStartTime;
+                        
+                        if (holdTime >= HOLD_DURATION) {
+                            // SUCCESS ROOT
+                            deck.className = "controls-container match-exact";
+                            tunerEl.className = "tuner-display match-exact";
+                            tunerEl.innerText = "ROOT!";
+                            
+                            ignoreMicInput = true;
+                            quizState = 'playing_root_conf';
+                            lastDetectedNote = null;
+                            
+                            setTimeout(() => {
+                                advanceToInterval();
+                            }, 500);
+                        } else {
+                            // Holding...
+                            tunerEl.innerText = TRANSLATIONS[currentLang].holdRoot;
+                            tunerEl.className = "tuner-display match-exact";
+                        }
+                    } else {
+                        // Wrong note
+                        lastDetectedNote = null;
+                        tunerEl.innerText = getDisplayNote(sungNote);
+                        tunerEl.className = "tuner-display listening";
+                        deck.className = "controls-container";
+                    }
+                }
+                
+                // --- PHASE 2: SING INTERVAL (Requires Hold) ---
+                else if (quizState === 'waiting_interval') {
+                    
+                    if (sungNote === quizTargetNoteObj.name) {
+                        
+                        // Hold Logic
+                        if(lastDetectedNote !== sungNote) {
+                            holdStartTime = Date.now();
+                            lastDetectedNote = sungNote;
+                        }
+
+                        const holdTime = Date.now() - holdStartTime;
+                        
+                        if(holdTime >= HOLD_DURATION) {
+                            // SUCCESS INTERVAL
+                            deck.className = "controls-container match-exact";
+                            tunerEl.className = "tuner-display match-exact";
+                            tunerEl.innerText = TRANSLATIONS[currentLang].great; 
+                            
+                            quizState = 'waiting_guess'; // lock
+                            lastDetectedNote = null;
+
+                            // CHECK TOGGLE: Do we show the theory quiz?
+                            const useTheoryQuiz = document.getElementById('chkQuizTheory').checked;
+
+                            setTimeout(() => {
+                                if (useTheoryQuiz) {
+                                    tunerEl.innerText = TRANSLATIONS[currentLang].quizCorrect;
+                                    deck.className = "controls-container"; 
+                                    presentQuizChoices();
+                                } else {
+                                    // NO QUIZ -> Play note and restart
+                                    sampler.triggerAttackRelease(quizTargetNoteObj.name, 1.0);
+                                    setTimeout(startQuizRound, 1500);
+                                }
+                            }, 500);
+                            
+                        } else {
+                            // Holding...
+                            tunerEl.innerText = TRANSLATIONS[currentLang].hold; 
+                            tunerEl.className = "tuner-display hidden-mode"; // Keep color but different style? 
+                            // Actually better to show green/teal text while holding hidden note
+                            tunerEl.className = "tuner-display match-exact"; 
+                        }
+                    } else {
+                        // Wrong note singing
+                        lastDetectedNote = null;
+                        tunerEl.innerText = "???"; 
+                        tunerEl.className = "tuner-display hidden-mode";
+                    }
+                }
+            } else {
+                // Not singing -> Reset hold
+                lastDetectedNote = null;
+                
+                if(quizState === 'waiting_root') {
+                   tunerEl.innerText = TRANSLATIONS[currentLang].mic;
+                   tunerEl.className = "tuner-display listening";
+                } else if(quizState === 'waiting_interval') {
+                   tunerEl.innerText = "...";
+                   tunerEl.className = "tuner-display listening";
+                }
+            }
+            
+            detectionId = requestAnimationFrame(updatePitch);
+            return;
+        }
+
+        // --- FREE MODE LOGIC ---
         const allComplete = matchedStatus.length > 0 && matchedStatus.every(s => s === true);
 
         if (!isSinging) {
-            // --- SESSİZLİK DURUMU ---
             if(allComplete) {
-                // Her şey tamamsa ve susuyorsa: "Complete" yaz ve Mor yap.
                 tunerEl.innerText = "COMPLETE!";
                 deck.className = "controls-container match-complete";
-                tunerEl.className = "tuner-display match-complete"; // Uyumlu görünmesi için
+                tunerEl.className = "tuner-display match-complete"; 
             } else {
-                // Henüz bitmemiş ve susuyor
                 tunerEl.innerText = "--";
                 tunerEl.className = "tuner-display listening";
                 deck.className = "controls-container";
             }
         } else {
-            // --- ŞARKI SÖYLEME DURUMU ---
             const midi = frequencyToNote(freq);
             const sungNote = getNoteNameFromMidi(midi);
             const sungChroma = getNoteChroma(sungNote);
             
-            // Default: Notayı ekrana yaz
             tunerEl.innerText = getDisplayNote(sungNote);
 
             if(currentTargetNotes.length > 0) {
                 const exactMatchIndex = currentTargetNotes.indexOf(sungNote);
                 
-                // 1. EXACT MATCH KONTROLÜ (TURKUAZ)
                 if (exactMatchIndex > -1) {
                     if (!matchedStatus[exactMatchIndex]) {
-                        matchedStatus[exactMatchIndex] = true; // Yeni buldu
+                        matchedStatus[exactMatchIndex] = true; 
                         updateTargetDisplay();
                         
                         const keyEl = document.getElementById(`key-${sungNote}`);
@@ -465,15 +698,12 @@
                             setTimeout(() => keyEl.classList.remove('active'), 500);
                         }
                     }
-                    // Ekrana geri bildirim (Mor olsa bile Turkuaz baskın)
                     tunerEl.className = "tuner-display match-exact";
                     deck.className = "controls-container match-exact";
                     tunerEl.innerText = "EXACT: " + getDisplayNote(sungNote);
                     
                 } 
-                // 2. OKTAV MATCH KONTROLÜ (TURUNCU)
                 else {
-                    // Hedef listedeki herhangi bir notanın oktavı mı?
                     const isOctave = currentTargetNotes.some(target => getNoteChroma(target) === sungChroma);
                     
                     if (isOctave) {
@@ -481,14 +711,11 @@
                         deck.className = "controls-container match-octave";
                         tunerEl.innerText = "OCTAVE: " + getDisplayNote(sungNote);
                     } 
-                    // 3. HİÇBİRİ DEĞİLSE
                     else {
                         if(allComplete) {
-                            // Bitmiş ama yanlış/alakasız nota söylüyor -> Arka plan Mor kalsın, notayı göster
-                            tunerEl.className = "tuner-display listening"; // Nötr renk
-                            deck.className = "controls-container match-complete"; // Arka plan hala mor
+                            tunerEl.className = "tuner-display listening"; 
+                            deck.className = "controls-container match-complete"; 
                         } else {
-                            // Bitmemiş ve yanlış nota -> Nötr
                             tunerEl.className = "tuner-display listening";
                             deck.className = "controls-container";
                         }
@@ -516,6 +743,159 @@
         });
     }
 
+    // --- QUIZ LOGIC ---
+    function populateIntervals() {
+        const grid = document.getElementById('intervalChecks');
+        grid.innerHTML = '';
+        INTERVAL_DATA.forEach((int, idx) => {
+            const labelText = (currentLang === 'tr') ? int.tr : int.en;
+            const div = document.createElement('div');
+            div.className = 'chk-btn';
+            div.innerHTML = `
+                <input type="checkbox" id="int-${idx}" value="${int.semitones}" ${idx < 4 ? 'checked' : ''}>
+                <label for="int-${idx}" class="chk-label">${labelText}</label>
+            `;
+            grid.appendChild(div);
+        });
+        
+        // Populate Quiz Root Key (ALL NOTES - C2 to B7)
+        const quizRoot = document.getElementById('quizRootKey');
+        quizRoot.innerHTML = '';
+        allNotes.forEach(n => {
+            const displayName = getDisplayNote(n.name);
+            quizRoot.add(new Option(displayName, n.val));
+        });
+        
+        // Default C4 (60)
+        const c4 = allNotes.find(n => n.name === 'C4');
+        if(c4) quizRoot.value = c4.val;
+    }
+
+    function startQuizRound() {
+        if (!isPlaying) return;
+        
+        // Reset Hold State
+        lastDetectedNote = null;
+        holdStartTime = 0;
+
+        // 1. Get Settings
+        const rootVal = parseInt(document.getElementById('quizRootKey').value);
+        quizRootNoteObj = allNotes.find(n => n.val === rootVal);
+
+        const checkboxes = document.querySelectorAll('#intervalChecks input:checked');
+        if (checkboxes.length === 0) {
+            alert("Please select at least one interval!");
+            stopApp();
+            return;
+        }
+        
+        // 2. Pick Random Interval
+        const randomChk = checkboxes[Math.floor(Math.random() * checkboxes.length)];
+        const semitones = parseInt(randomChk.value);
+        const intervalInfo = INTERVAL_DATA.find(i => i.semitones === semitones);
+        quizIntervalName = (currentLang === 'tr') ? intervalInfo.tr : intervalInfo.en;
+
+        const targetVal = quizRootNoteObj.val + semitones;
+        quizTargetNoteObj = allNotes.find(n => n.val === targetVal);
+        
+        if (!quizTargetNoteObj) { startQuizRound(); return; } 
+
+        // 3. UI Reset
+        document.getElementById('quizOptions').classList.remove('visible');
+        document.getElementById('controlDeck').className = "controls-container";
+        
+        // 4. Play Root Audio Immediately
+        if(sampler && isAudioReady) {
+            sampler.triggerAttackRelease(quizRootNoteObj.name, 2.0);
+            highlightKey(quizRootNoteObj.name);
+        }
+
+        // 5. Start with Root
+        document.getElementById('targetDisplay').innerText = `${TRANSLATIONS[currentLang].quizSingRoot} ${getDisplayNote(quizRootNoteObj.name)}`;
+        quizState = 'waiting_root';
+        ignoreMicInput = false;
+    }
+    
+    function advanceToInterval() {
+        if(sampler && isAudioReady) {
+            sampler.triggerAttackRelease(quizRootNoteObj.name, 2.0);
+            highlightKey(quizRootNoteObj.name);
+        }
+        
+        document.getElementById('controlDeck').className = "controls-container"; 
+        document.getElementById('targetDisplay').innerText = `${TRANSLATIONS[currentLang].quizSingInt} ${quizIntervalName}`;
+        
+        // Reset hold for next phase
+        lastDetectedNote = null; 
+
+        setTimeout(() => {
+            ignoreMicInput = false;
+            quizState = 'waiting_interval';
+        }, 1000);
+    }
+
+    function presentQuizChoices() {
+        const container = document.getElementById('quizOptions');
+        container.innerHTML = '';
+        container.classList.add('visible');
+        
+        // Correct answer + 2 Distractors
+        let options = [quizTargetNoteObj];
+        
+        // Generate Distractors
+        while(options.length < 3) {
+            const shift = Math.floor(Math.random() * 5) - 2; // -2 to +2
+            if(shift === 0) continue;
+            const wrongVal = quizTargetNoteObj.val + shift;
+            const wrongNote = allNotes.find(n => n.val === wrongVal);
+            if(wrongNote && !options.includes(wrongNote)) options.push(wrongNote);
+        }
+        
+        // Shuffle
+        options.sort(() => Math.random() - 0.5);
+        
+        options.forEach(note => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-btn';
+            btn.innerText = getDisplayNote(note.name); 
+            btn.dataset.note = note.name;
+            btn.onclick = () => handleQuizAnswer(btn, note.name);
+            container.appendChild(btn);
+        });
+    }
+
+    function handleQuizAnswer(btn, selectedNoteName) {
+        if(quizState !== 'waiting_guess') return;
+
+        const isCorrect = (selectedNoteName === quizTargetNoteObj.name);
+        
+        if (isCorrect) {
+            btn.classList.add('correct');
+            document.getElementById('controlDeck').className = "controls-container match-complete"; 
+            quizState = 'success';
+            
+            sampler.triggerAttackRelease(quizTargetNoteObj.name, 1.0);
+            
+            setTimeout(() => {
+                startQuizRound();
+            }, 2000);
+        } else {
+            btn.classList.add('wrong');
+            const btns = document.querySelectorAll('.quiz-btn');
+            btns.forEach(b => {
+                if(b.dataset.note === quizTargetNoteObj.name) b.classList.add('correct'); 
+            });
+            document.getElementById('controlDeck').className = "controls-container match-octave";
+            
+            quizState = 'success'; 
+            setTimeout(() => {
+                startQuizRound();
+            }, 3000);
+        }
+    }
+
+
+    // --- MAIN APP ---
     async function toggleMic() {
         if(isMicActive) {
             if(mic) mic.close();
@@ -612,12 +992,31 @@
         return (index > -1) ? NOTE_NAMES_TR[index] + octave : noteName;
     }
 
+    function switchTab(mode) {
+        currentMode = mode;
+        stopApp(); // Stop any running sequence
+
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.mode-section').forEach(s => s.classList.remove('active'));
+
+        if (mode === 'free') {
+            document.getElementById('tabFree').classList.add('active');
+            document.getElementById('mode-free').classList.add('active');
+        } else {
+            document.getElementById('tabQuiz').classList.add('active');
+            document.getElementById('mode-quiz').classList.add('active');
+            if(allNotes.length > 0) populateIntervals();
+        }
+    }
+
     function setLang(lang) {
         currentLang = lang;
         const t = TRANSLATIONS[lang];
         document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
         document.querySelector(`button[onclick="setLang('${lang}')"]`).classList.add('active');
         document.querySelector('h1').innerText = t.title;
+        
+        // Free Mode Labels
         document.getElementById('lbl_key').innerText = t.key;
         document.getElementById('lbl_scale').innerText = t.scale;
         document.getElementById('lbl_start').innerText = t.start;
@@ -626,6 +1025,13 @@
         document.getElementById('lbl_gain').innerText = t.gain;
         document.getElementById('lbl_count').innerText = t.count;
         document.getElementById('lbl_style').innerText = t.style;
+
+        // Quiz Mode Labels
+        document.getElementById('tabFree').innerText = t.freeTab;
+        document.getElementById('tabQuiz').innerText = t.quizTab;
+        document.getElementById('lbl_quiz_key').innerText = t.quizKey;
+        document.getElementById('lbl_intervals_sel').innerText = t.selInt;
+        document.getElementById('lbl_quiz_theory').innerText = t.chkTheory;
         
         const btnStart = document.getElementById('startBtn');
         if(!btnStart.disabled) btnStart.innerText = t.btnStart;
@@ -642,13 +1048,16 @@
         updateOptions('noteCount', t.counts);
         updateOptions('playStyle', t.styles);
         
+        // Scale Types
         const opts = document.getElementById('scaleType').options;
         for(let opt of opts) {
             if(!opt.dataset.en) opt.dataset.en = opt.innerText;
             if(lang === 'tr' && opt.dataset.tr) opt.innerText = opt.dataset.tr;
             else opt.innerText = opt.dataset.en;
         }
+        
         populateDropdowns(true); 
+        if(currentMode === 'quiz') populateIntervals();
     }
 
     function populateDropdowns(preserveSelection = false) {
@@ -685,6 +1094,8 @@
         populateDropdowns(false);
         renderPiano();
         initAudio();
+        // Initial populate intervals just in case
+        // populateIntervals() removed here, called in switchTab or later
     }
 
     async function playNoteSequence(notes, style) {
@@ -803,7 +1214,8 @@
     }
 
     function playRandom() {
-        if (!isPlaying) return;
+        if (!isPlaying || currentMode !== 'free') return;
+        
         const min = parseInt(document.getElementById('minNote').value);
         const max = parseInt(document.getElementById('maxNote').value);
         const root = parseInt(document.getElementById('rootKey').value);
@@ -867,9 +1279,15 @@
         if (Tone.context.state !== 'running') await Tone.start();
         isPlaying = true;
         if(!isMicActive) await toggleMic();
+        
         document.getElementById('startBtn').style.display = 'none';
         document.getElementById('stopBtn').style.display = 'block';
-        playRandom();
+
+        if(currentMode === 'free') {
+            playRandom();
+        } else {
+            startQuizRound();
+        }
     }
 
     function stopApp() {
@@ -880,6 +1298,8 @@
         document.getElementById('stopBtn').style.display = 'none';
         document.getElementById('targetDisplay').innerText = TRANSLATIONS[currentLang].ready;
         document.getElementById('controlDeck').className = "controls-container";
+        document.getElementById('tunerDisplay').className = "tuner-display";
+        document.getElementById('quizOptions').classList.remove('visible');
         ignoreMicInput = false;
         currentTargetNotes = [];
     }
