@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vocal Coach Pro (Live Feedback)</title>
+    <title>Vocal Coach Pro (Display Shift)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         /* --- 1. LOGICAL COLOR SYSTEM (HSL) --- */
@@ -478,14 +478,14 @@
     
     // Quiz State
     let quizTargetNoteObj = null; 
-    let quizRootNoteObj = null;   
+    let quizRootNoteObj = null;    
     let quizIntervalName = "";
     let quizState = 'idle'; 
     
     // Hold Timer Logic
     let holdStartTime = 0;
     let lastDetectedNote = null;
-    const HOLD_DURATION = 1000; // 1 second hold needed
+    const HOLD_DURATION = 300; // 0.3 sn - Hızlı Algılama için
 
     let isMicActive = false;
     let detectionId = null;
@@ -518,9 +518,10 @@
         return sampleRate / T0;
     }
 
+    // Orijinal frekans çeviricisi - Manipülasyon yok
     function frequencyToNote(freq) {
         const noteNum = 12 * (Math.log(freq / 440) / Math.log(2)) + 69;
-        return Math.round(noteNum);
+        return Math.round(noteNum); 
     }
 
     function getNoteNameFromMidi(midi) {
@@ -530,6 +531,22 @@
     }
 
     function getNoteChroma(noteName) { return noteName.replace(/[0-9-]/g, ''); }
+
+    // Görüntüleme için Yardımcı Fonksiyon (Eğer +1 oktav gösterilecekse)
+    function getAdjustedDisplayNote(noteObj, shiftOctave = false) {
+        if(!noteObj) return "";
+        let finalName = noteObj.name;
+        
+        if (shiftOctave) {
+            // Midi değerine +12 ekleyip yeni ismini bulalım
+            // Ama sadece display (görüntü) için
+             const val = noteObj.val + 12; 
+             const shiftedObj = allNotes.find(n => n.val === val);
+             if(shiftedObj) finalName = shiftedObj.name;
+        }
+
+        return getDisplayNote(finalName);
+    }
 
     function updatePitch() {
         if (!isMicActive || !analyser) return;
@@ -556,10 +573,16 @@
             if (isSinging) {
                 const midi = frequencyToNote(freq);
                 const sungNote = getNoteNameFromMidi(midi);
-                
+                const sungNoteObj = allNotes.find(n => n.name === sungNote);
+
                 // --- PHASE 1: SING ROOT (Requires Hold) ---
-                if (quizState === 'waiting_root') {
-                    if (sungNote === quizRootNoteObj.name) {
+                if (quizState === 'waiting_root' && sungNoteObj) {
+                    
+                    const isExact = (sungNoteObj.val === quizRootNoteObj.val);
+                    const isLowerOctave = (sungNoteObj.val === quizRootNoteObj.val - 12);
+                    const isMatch = isExact || isLowerOctave;
+
+                    if (isMatch) {
                         
                         // Hold Logic
                         if(lastDetectedNote !== sungNote) {
@@ -570,7 +593,6 @@
                         const holdTime = Date.now() - holdStartTime;
                         
                         if (holdTime >= HOLD_DURATION) {
-                            // SUCCESS ROOT
                             deck.className = "controls-container match-exact";
                             tunerEl.className = "tuner-display match-exact";
                             tunerEl.innerText = "ROOT!";
@@ -583,12 +605,10 @@
                                 advanceToInterval();
                             }, 500);
                         } else {
-                            // Holding...
                             tunerEl.innerText = TRANSLATIONS[currentLang].holdRoot;
                             tunerEl.className = "tuner-display match-exact";
                         }
                     } else {
-                        // Wrong note
                         lastDetectedNote = null;
                         tunerEl.innerText = getDisplayNote(sungNote);
                         tunerEl.className = "tuner-display listening";
@@ -597,11 +617,13 @@
                 }
                 
                 // --- PHASE 2: SING INTERVAL (Requires Hold) ---
-                else if (quizState === 'waiting_interval') {
+                else if (quizState === 'waiting_interval' && sungNoteObj) {
                     
-                    if (sungNote === quizTargetNoteObj.name) {
-                        
-                        // Hold Logic
+                    const isExact = (sungNoteObj.val === quizTargetNoteObj.val);
+                    const isLowerOctave = (sungNoteObj.val === quizTargetNoteObj.val - 12);
+                    const isMatch = isExact || isLowerOctave;
+
+                    if (isMatch) {
                         if(lastDetectedNote !== sungNote) {
                             holdStartTime = Date.now();
                             lastDetectedNote = sungNote;
@@ -610,7 +632,6 @@
                         const holdTime = Date.now() - holdStartTime;
                         
                         if(holdTime >= HOLD_DURATION) {
-                            // SUCCESS INTERVAL
                             deck.className = "controls-container match-exact";
                             tunerEl.className = "tuner-display match-exact";
                             tunerEl.innerText = TRANSLATIONS[currentLang].great; 
@@ -618,7 +639,6 @@
                             quizState = 'waiting_guess'; // lock
                             lastDetectedNote = null;
 
-                            // CHECK TOGGLE: Do we show the theory quiz?
                             const useTheoryQuiz = document.getElementById('chkQuizTheory').checked;
 
                             setTimeout(() => {
@@ -627,30 +647,23 @@
                                     deck.className = "controls-container"; 
                                     presentQuizChoices();
                                 } else {
-                                    // NO QUIZ -> Play note and restart
                                     sampler.triggerAttackRelease(quizTargetNoteObj.name, 1.0);
                                     setTimeout(startQuizRound, 1500);
                                 }
                             }, 500);
                             
                         } else {
-                            // Holding...
                             tunerEl.innerText = TRANSLATIONS[currentLang].hold; 
-                            tunerEl.className = "tuner-display hidden-mode"; // Keep color but different style? 
-                            // Actually better to show green/teal text while holding hidden note
                             tunerEl.className = "tuner-display match-exact"; 
                         }
                     } else {
-                        // Wrong note singing
                         lastDetectedNote = null;
                         tunerEl.innerText = "???"; 
                         tunerEl.className = "tuner-display hidden-mode";
                     }
                 }
             } else {
-                // Not singing -> Reset hold
                 lastDetectedNote = null;
-                
                 if(quizState === 'waiting_root') {
                    tunerEl.innerText = TRANSLATIONS[currentLang].mic;
                    tunerEl.className = "tuner-display listening";
@@ -668,6 +681,7 @@
         const allComplete = matchedStatus.length > 0 && matchedStatus.every(s => s === true);
 
         if (!isSinging) {
+            lastDetectedNote = null; 
             if(allComplete) {
                 tunerEl.innerText = "COMPLETE!";
                 deck.className = "controls-container match-complete";
@@ -681,47 +695,97 @@
             const midi = frequencyToNote(freq);
             const sungNote = getNoteNameFromMidi(midi);
             const sungChroma = getNoteChroma(sungNote);
-            
-            tunerEl.innerText = getDisplayNote(sungNote);
+            const sungNoteObj = allNotes.find(n => n.name === sungNote);
 
-            if(currentTargetNotes.length > 0) {
-                const exactMatchIndex = currentTargetNotes.indexOf(sungNote);
+            // Varsayılan olarak gerçek notayı göster
+            let displayString = getDisplayNote(sungNote);
+            let displayClass = "tuner-display listening";
+            let deckClass = "controls-container";
+
+            if(currentTargetNotes.length > 0 && sungNoteObj) {
                 
-                if (exactMatchIndex > -1) {
-                    if (!matchedStatus[exactMatchIndex]) {
-                        matchedStatus[exactMatchIndex] = true; 
-                        updateTargetDisplay();
-                        
-                        const keyEl = document.getElementById(`key-${sungNote}`);
-                        if(keyEl) {
-                            keyEl.classList.add('active');
-                            setTimeout(() => keyEl.classList.remove('active'), 500);
+                let smartMatchIndex = -1;
+                let isShifted = false; // Kalın oktavı mı tutturdun?
+
+                currentTargetNotes.forEach((targetName, index) => {
+                    const targetNoteObj = allNotes.find(n => n.name === targetName);
+                    if (targetNoteObj) {
+                        // 1. TAM İSABET
+                        if (sungNoteObj.val === targetNoteObj.val) {
+                            smartMatchIndex = index;
+                            isShifted = false;
+                        } 
+                        // 2. KALIN OKTAV (Aslında Do4 istedik ama Do3 geldi, kabul et)
+                        else if (sungNoteObj.val === (targetNoteObj.val - 12)) {
+                            smartMatchIndex = index;
+                            isShifted = true; // Ekranda düzeltme yapacağız
                         }
                     }
-                    tunerEl.className = "tuner-display match-exact";
-                    deck.className = "controls-container match-exact";
-                    tunerEl.innerText = "EXACT: " + getDisplayNote(sungNote);
+                });
+                
+                if (smartMatchIndex > -1) {
+                    // Nota (veya kalın oktavı) bulundu
                     
+                    // EKRAN DÜZELTMESİ:
+                    // Eğer kullanıcı kalın oktavdan (Do3) tutturduysa,
+                    // ekranda bunu "Do3" değil, hedefin kendisi olan "Do4" gibi gösterelim.
+                    // Böylece kullanıcı "Yanlış oktavdayım" hissi yaşamaz.
+                    if (isShifted) {
+                        displayString = getAdjustedDisplayNote(sungNoteObj, true); 
+                    }
+
+                    if(lastDetectedNote !== sungNote) {
+                        holdStartTime = Date.now();
+                        lastDetectedNote = sungNote;
+                    }
+                    
+                    const holdTime = Date.now() - holdStartTime;
+                    
+                    if (holdTime >= HOLD_DURATION) {
+                         if (!matchedStatus[smartMatchIndex]) {
+                            matchedStatus[smartMatchIndex] = true; 
+                            updateTargetDisplay();
+                            
+                            const originalTargetName = currentTargetNotes[smartMatchIndex];
+                            const keyEl = document.getElementById(`key-${originalTargetName}`);
+                            if(keyEl) {
+                                keyEl.classList.add('active');
+                                setTimeout(() => keyEl.classList.remove('active'), 500);
+                            }
+                        }
+                        displayString = "EXACT: " + displayString;
+                        displayClass = "tuner-display match-exact";
+                        deckClass = "controls-container match-exact";
+                    } else {
+                        displayString = "HOLD: " + displayString;
+                        displayClass = "tuner-display match-exact";
+                        deckClass = "controls-container match-exact";
+                    }
+
                 } 
                 else {
+                    lastDetectedNote = null; 
                     const isOctave = currentTargetNotes.some(target => getNoteChroma(target) === sungChroma);
                     
                     if (isOctave) {
-                        tunerEl.className = "tuner-display match-octave";
-                        deck.className = "controls-container match-octave";
-                        tunerEl.innerText = "OCTAVE: " + getDisplayNote(sungNote);
+                        displayClass = "tuner-display match-octave";
+                        deckClass = "controls-container match-octave";
+                        displayString = "OCTAVE: " + displayString;
                     } 
                     else {
                         if(allComplete) {
-                            tunerEl.className = "tuner-display listening"; 
-                            deck.className = "controls-container match-complete"; 
-                        } else {
-                            tunerEl.className = "tuner-display listening";
-                            deck.className = "controls-container";
-                        }
+                            displayClass = "tuner-display listening"; 
+                            deckClass = "controls-container match-complete"; 
+                        } 
                     }
                 }
+            } else {
+                 lastDetectedNote = null;
             }
+
+            tunerEl.innerText = displayString;
+            tunerEl.className = displayClass;
+            deck.className = deckClass;
         }
         detectionId = requestAnimationFrame(updatePitch);
     }
@@ -1181,7 +1245,7 @@
                 if(e.type === 'touchstart') e.stopPropagation(); 
                 if(Tone.context.state !== 'running') await Tone.start();
                 if(sampler && isAudioReady) {
-                     playNoteSequence([note.name], 'chord');
+                      playNoteSequence([note.name], 'chord');
                 }
             };
             div.addEventListener('mousedown', trigger);
